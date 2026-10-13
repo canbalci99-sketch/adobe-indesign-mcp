@@ -6,23 +6,40 @@ export function escapeExtendScriptString(str: string): string {
     .replace(/\r/g, '\\r');
 }
 
-export function sanitizeCode(code: string): string {
-  const dangerous = [
-    /require\(['"]fs['"]\)/g,
-    /require\(['"]child_process['"]\)/g,
-    /require\(['"]net['"]\)/g,
-    /\bprocess\.exit\b/g,
-    /\bprocess\.kill\b/g,
-    /\bexec\(/g,
-    /\bspawn\(/g,
-    /\bfork\(/g,
-    /\beval\s*\(/g,
-    /\bFunction\s*\(/g,
-  ];
+/**
+ * Calls that must not reach the ExtendScript engine, each replaced by
+ * `__blocked(...)`. The trusted bundle defines `__blocked` to throw, and the
+ * substitution keeps the opening parenthesis so the closing one still balances.
+ *
+ * The previous version substituted a bare `/* blocked *​/` comment for the
+ * callee, so `eval(1)` became `/* blocked *​/1)` — a syntax error. Every script
+ * that tripped the filter then failed inside InDesign with "Expected: ;",
+ * naming neither the offending construct nor the reason. Neutralisation has to
+ * leave the code parseable so the rejection can be reported as what it is.
+ */
+const BLOCKED_CALLS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Any require, not just fs/child_process/net: there is no require in
+  // ExtendScript, so a narrower list only produced false negatives.
+  [/\brequire\s*\(/g, 'require'],
+  [/\beval\s*\(/g, 'eval'],
+  [/\bFunction\s*\(/g, 'Function'],
+  [/\bexec\s*\(/g, 'exec'],
+  [/\bspawn\s*\(/g, 'spawn'],
+  [/\bfork\s*\(/g, 'fork'],
+];
 
+const BLOCKED_PROPERTIES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bprocess\s*\.\s*exit\b/g, 'process.exit'],
+  [/\bprocess\s*\.\s*kill\b/g, 'process.kill'],
+];
+
+export function sanitizeCode(code: string): string {
   let sanitized = code;
-  for (const pattern of dangerous) {
-    sanitized = sanitized.replace(pattern, '/* blocked */');
+  for (const [pattern, name] of BLOCKED_CALLS) {
+    sanitized = sanitized.replace(pattern, `__blocked(${JSON.stringify(name)}, `);
+  }
+  for (const [pattern, name] of BLOCKED_PROPERTIES) {
+    sanitized = sanitized.replace(pattern, `__blocked(${JSON.stringify(name)})`);
   }
   return sanitized;
 }

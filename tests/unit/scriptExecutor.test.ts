@@ -89,8 +89,11 @@ describe('ScriptExecutor', () => {
 
   it('should sanitize dangerous code', async () => {
     executor.on('request', (req) => {
-      expect(req.code).toContain('/* blocked */');
+      expect(req.code).toContain('__blocked');
       expect(req.code).not.toContain('require("fs")');
+      // The neutralised script must still parse: substituting a bare comment for
+      // the callee left an unbalanced paren and broke every script silently.
+      expect(() => new Function(req.code)).not.toThrow();
       setTimeout(() => {
         executor.handleResponse({ id: req.id, type: 'result', result: '' });
       }, 0);

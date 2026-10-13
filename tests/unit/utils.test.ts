@@ -89,16 +89,43 @@ describe('escapeExtendScriptString', () => {
 });
 
 describe('sanitizeCode', () => {
-  it('should block require("fs")', () => {
-    expect(sanitizeCode('require("fs")')).toContain('/* blocked */');
+  // Neutralising a dangerous call used to substitute a bare `/* blocked */`
+  // comment for the callee, so `eval(1)` became `/* blocked */1)` — an
+  // unbalanced parenthesis. Every script containing a blocked call then died
+  // with ExtendScript's cryptic "Expected: ;" instead of a clear rejection.
+  // Substitution must leave the code parseable.
+  const dangerous = [
+    'eval(1)',
+    'Function("return 1")',
+    'require("fs")',
+    'require("http")',
+    'process.exit(0)',
+    'process.kill(1)',
+    'exec("ls")',
+    'spawn("node")',
+    'fork("worker")',
+    'app.documents.length; eval(z)',
+    'require(eval("x"))',
+  ];
+
+  it.each(dangerous)('neutralises %s and leaves valid syntax', (source) => {
+    const out = sanitizeCode(source);
+    expect(out).not.toBe(source);
+    expect(out).toContain('__blocked');
+    expect(() => new Function(out), `not parseable: ${out}`).not.toThrow();
   });
 
-  it('should block process.exit', () => {
-    expect(sanitizeCode('process.exit(0)')).toContain('/* blocked */');
+  it('blocks require of any module, not only the three hardcoded names', () => {
+    expect(sanitizeCode('require("http")')).not.toContain('require(');
   });
 
-  it('should allow safe code', () => {
+  it('leaves safe code untouched', () => {
     const safe = 'app.documents.add();';
+    expect(sanitizeCode(safe)).toBe(safe);
+  });
+
+  it('does not touch the word eval when it is not a call', () => {
+    const safe = 'var note = "eval is just a word here";';
     expect(sanitizeCode(safe)).toBe(safe);
   });
 });
