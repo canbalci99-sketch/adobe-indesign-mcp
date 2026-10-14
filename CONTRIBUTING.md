@@ -2,6 +2,8 @@
 
 Thanks for considering contributing to indesign-nutria-mcp!
 
+For the build/test/live-test workflow, see [docs/development.md](docs/development.md).
+
 ## How to add a new tool
 
 1. Find the right handler in `src/handlers/` or create a new one
@@ -9,7 +11,8 @@ Thanks for considering contributing to indesign-nutria-mcp!
 3. Implement the handler method
 4. Register in `IndesignMcpServer.ts`
 5. Add a unit test in `tests/unit/handlers/`
-6. Run `npm test` and `npm run build`
+6. Run `npm run verify` (lint + tool counts + tests) and `npm run docs:tools`
+   if the tool list changed
 
 ## Guidelines
 
@@ -24,7 +27,7 @@ Thanks for considering contributing to indesign-nutria-mcp!
 1. Fork the repo
 2. Create a feature branch
 3. Open a PR with a clear description
-4. CI must pass (747+ tests)
+4. CI must pass
 5. Get a review
 
 ## Code of conduct

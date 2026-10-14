@@ -21,7 +21,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7c3aed?style=flat" alt="license"></a>
   <a href="#"><img src="https://img.shields.io/badge/tools-195-7c3aed?style=flat" alt="tools"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-966-22c55e?style=flat" alt="tests"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-1016-22c55e?style=flat" alt="tests"></a>
   <a href="https://github.com/nutriandrea/adobe-indesign-mcp/actions/workflows/ci.yml/badge.svg"><img src="https://github.com/nutriandrea/adobe-indesign-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?style=flat&logo=node.js" alt="node"></a>
   <a href="https://www.adobe.com/products/indesign.html"><img src="https://img.shields.io/badge/InDesign-2022%2B-007396?style=flat&logo=adobe" alt="indesign"></a>
@@ -155,6 +155,10 @@ events); the proxy exists for setups where you cannot or do not want to load a
 UXP panel. See [WINDOWS.md](WINDOWS.md) for the Windows bridge and
 `start-bridge.sh` for the macOS one.
 
+> **Full breakdown:** the four macOS processes, the request lifecycle, the error
+> contract and the trust boundaries are in
+> [docs/architecture.md](docs/architecture.md).
+
 ### Full Handler Catalog
 
 | Handler | Tools | Key Features |
@@ -201,9 +205,11 @@ Verified end-to-end against InDesign 2026 (21.3) on the plugin-free macOS path:
 MCP stdio → WebSocket bridge → JXA proxy → InDesign, creating a document,
 adding a text frame, reading it back, and closing.
 
-> **Calling `document_close` from an agent?** `saveOptions` defaults to `ask`,
-> which raises a modal dialog in InDesign and blocks the script until the bridge
-> times out. Pass `saveOptions: "yes"` or `"no"` explicitly.
+> **Closing documents from an agent?** `document_close` defaults to
+> `saveOptions: "no"` — the only value that cannot raise a modal dialog. `"ask"`
+> opens a save prompt, and `"yes"` opens a **Save As** dialog for a document that
+> was never saved; both block the script until the bridge times out. Save first
+> with `document_save { filePath }`, then close.
 
 ### MCP Resources
 
@@ -426,7 +432,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ├── jxa-driver.js        # Runs one ExtendScript inside InDesign
 ├── start-bridge.sh      # Launches InDesign + the proxy
 ├── skills/              # Agent-facing skills shipped with the server
-├── tests/               # 966 tests (vitest)
+├── tests/               # 1016 tests (vitest)
 ├── .opencode/skills/    # 10 AI agent skills
 ├── docs/                # Documentation and fork audits
 ├── media/               # Social preview, hero images
@@ -449,7 +455,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ## 🧪 Development
 
 ```bash
-npm test            # Run 966 tests
+npm test            # Run 1016 tests
 npm run test:watch  # Watch mode
 npm run build       # TypeScript compile
 npm run lint        # ESLint
@@ -491,6 +497,10 @@ or the driver.
 
 ## 📚 Deep Dives
 
+- [Architecture](docs/architecture.md) — the four-process macOS path, request lifecycle, error contract
+- [Available tools](docs/available-tools.md) — every tool, generated from the registry
+- [Troubleshooting](docs/troubleshooting.md) — modal hangs, port conflicts, missing fonts, blocked scripts
+- [Development](docs/development.md) — build, test, and the live smoke test
 - [Origin Story](docs/origin.md) — how this project came to life
 - [Comparison docs](docs/comparison.md) — MCP vs CEP vs ExtendScript in depth
 - [Launch thread](docs/launch-thread.md) — social launch content

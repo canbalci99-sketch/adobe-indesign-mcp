@@ -41,8 +41,10 @@
     "lint": "eslint src scripts --ext .ts",
     "lint:fix": "eslint src scripts --ext .ts --fix",
     "verify:tool-counts": "tsx scripts/verify-tool-counts.ts",
+    "docs:tools": "tsx scripts/generate-tool-docs.ts",
+    "verify:docs": "tsx scripts/generate-tool-docs.ts --check",
     "verify:pack": "npm run build && node scripts/verify-pack.mjs",
-    "verify": "npm run lint && npm run verify:tool-counts && npm test",
+    "verify": "npm run lint && npm run verify:tool-counts && npm run verify:docs && npm test",
     "smoke:macos": "node scripts/smoke-macos.mjs",
     "prepublishOnly": "npm run verify && npm run verify:pack"
   },

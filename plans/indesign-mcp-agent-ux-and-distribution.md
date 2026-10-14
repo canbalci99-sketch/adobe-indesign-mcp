@@ -367,6 +367,35 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S8 landed** (documentation suite), the other step unblocked
+  on day one besides S5. Four docs, all written against the code rather than the
+  README: `architecture.md` (the four-process macOS path with the real hop labels
+  and the class behind each one, the request lifecycle, the response/error
+  contract, the trust boundaries, and — the point — *why* the live smoke test
+  exists), `troubleshooting.md` (modal hangs, port 8120 in use, a mistyped
+  `INDESIGN_APP`, missing fonts, `script_blocked_by_policy`, `output_too_large`,
+  the split-stdout-chunk trap), `development.md` (build/test/live-test, the
+  `it.skipIf` platform-guard convention with its two reference tests), and
+  `available-tools.md`. The catalog is **generated** from the registry via
+  `npm run docs:tools` (same `loadHandlers` the server uses) and gated by
+  `npm run verify:docs`, so it cannot drift — the S7 finding that the README's
+  per-category headings sum to 164 is left alone deliberately: they are a curated
+  grouping with an uncounted "Other" bucket, not a partition, and
+  `verify:tool-counts` already skips them via the lookbehind. Two facts changed
+  while writing it. (1) G13 left the README lying: it still told agents
+  `saveOptions` defaulted to `ask` and to pass `"yes"`, when the safe default is
+  now `"no"` and `"yes"` is itself unsafe on an unsaved document — corrected,
+  along with the same stale comment in `smoke-macos.mjs`. (2) `jxaDriverExec`'s
+  premise ("osascript reports a result on stderr") is **false on this machine**:
+  a probe of `osascript -l JavaScript jxa-driver.js` puts the driver's return
+  value on **stdout** with exit 0, which is why `bridge-proxy.mjs` reads stdout
+  and works. The architecture doc states the verified behaviour; the historical
+  attribution in the README was left as written. Also refreshed the advertised
+  test count (966 → 1016) and the `CONTRIBUTING` figure, and pointed the README,
+  `CONTRIBUTING` and the e2e placeholder at the new docs. `tests/e2e/` is
+  described honestly as an unwired placeholder — its `run-manual.js` does not
+  exist and belongs to S10.
+
 - **2026-10-14** — **S7 landed** (CI hardening), and it paid for itself before it
   was finished. `npm run lint` had *never* worked: `eslint src/` with no config and
   no `--ext` matched no files and exited 0, so CI passed a check that could not

@@ -230,9 +230,9 @@ try {
         : textOf(bad).slice(0, 200),
     );
 
-    // saveOptions defaults to 'ask', which raises a modal dialog in InDesign and
-    // blocks the script until the bridge times out. Unattended callers must be
-    // explicit — this is exactly the trap the check above documents.
+    // document_close now defaults saveOptions to 'no' (the only value that
+    // cannot raise a modal dialog). We pass it explicitly anyway: this check
+    // documents the trap, and a modal would hang the whole chain.
     const closed = await request('tools/call', {
       name: 'document_close',
       arguments: { saveOptions: 'no' },

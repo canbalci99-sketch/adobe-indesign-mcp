@@ -55,6 +55,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A PR-title check** (`.github/workflows/pr-title.yml`). Zero third-party
   actions: the title is already in the event payload, so there is nothing to
   fetch, pin or trust
+- **An engineering documentation suite** under `docs/`:
+  [`architecture.md`](docs/architecture.md) (the four-process macOS path, the
+  request lifecycle, the response/error contract, the trust boundaries and why
+  the live smoke test exists), [`troubleshooting.md`](docs/troubleshooting.md)
+  (the modal-dialog hangs, a port already in use, a mistyped `INDESIGN_APP`,
+  missing fonts, `script_blocked_by_policy`, `output_too_large` and the split
+  stdout-chunk trap), [`available-tools.md`](docs/available-tools.md) and
+  [`development.md`](docs/development.md). The topology existing nowhere is
+  exactly why the `v1.4.2` bridge P0 survived 965 tests
+- **`npm run docs:tools`** generates `docs/available-tools.md` from the live
+  registry (the same loader the server uses), and **`npm run verify:docs`** fails
+  if the file on disk has drifted. CI runs the check, so the catalog a user reads
+  cannot fall behind the code
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and
@@ -76,6 +89,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`preview_document` failures are structured envelopes, not prose.** It used to
   catch its own errors and return a `preview failed: …` text block, which
   bypassed the error contract every other tool follows
+- **The README no longer tells agents the wrong `document_close` default.** It
+  still said `saveOptions` defaults to `ask` and advised passing `"yes"` or
+  `"no"`; the safe default has since become `"no"`, and `"yes"` is itself unsafe
+  on an unsaved document. The note now matches the schema, and the same stale
+  comment in `scripts/smoke-macos.mjs` was corrected. The advertised test count
+  and the `CONTRIBUTING` test figure were refreshed at the same time, and the
+  README gained a pointer to `docs/architecture.md`
 
 ### Fixed
 - **`export_batchFolder` matched any character before `.indd`.** The strip regex

@@ -47,6 +47,10 @@ jobs:
       # advertise against the real registry.
       - run: npm run verify:tool-counts
 
+      # docs/available-tools.md is generated from the registry; fail if it has
+      # drifted from the code.
+      - run: npm run verify:docs
+
       - run: npm run build
 
   package:
