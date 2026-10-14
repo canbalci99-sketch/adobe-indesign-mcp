@@ -15,6 +15,12 @@
  * plugin-free macOS setup could not have worked from an npm install. A
  * handshake alone would not have noticed, because the server only reaches for
  * the proxy when it runs a script.
+ *
+ * And it asserts the version the packed server announces on `initialize` is the
+ * version in `package.json` — the one field a host or a bug report uses to tell
+ * which build is running. `tests/unit/serverVersion.test.ts` checks the literal
+ * against `package.json`; this checks the artifact a user actually installs,
+ * which is the only place the bug was ever visible.
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -135,7 +141,7 @@ const result = await new Promise((resolve, reject) => {
     reject(new Error(`server exited early (code ${code})\n${stderr}`));
   });
   const send = (o) => child.stdin.write(`${JSON.stringify(o)}\n`);
-  const instructions = { present: false };
+  const instructions = { present: false, serverVersion: null };
   createInterface({ input: child.stdout }).on('line', (line) => {
     let msg;
     try {
@@ -145,12 +151,17 @@ const result = await new Promise((resolve, reject) => {
     }
     if (msg.id === 1) {
       instructions.present = typeof msg.result?.instructions === 'string';
+      instructions.serverVersion = msg.result?.serverInfo?.version ?? null;
       send({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
     } else if (msg.id === 2) {
       clearTimeout(timer);
       child.removeAllListeners('exit');
       child.kill();
-      resolve({ tools: msg.result?.tools?.length ?? 0, instructions: instructions.present });
+      resolve({
+        tools: msg.result?.tools?.length ?? 0,
+        instructions: instructions.present,
+        serverVersion: instructions.serverVersion,
+      });
     }
   });
   send({
@@ -168,6 +179,13 @@ const result = await new Promise((resolve, reject) => {
 if (result.tools < 1) fail(`the packed server advertised ${result.tools} tools`);
 if (!result.instructions) fail('the packed server did not advertise the workflow contract');
 
+const declared = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')).version;
+if (result.serverVersion !== declared) {
+  fail(
+    `the packed server announces version ${result.serverVersion} on initialize, but package.json says ${declared} — a stale version is worse than an absent one, because it looks authoritative`,
+  );
+}
+
 console.log(
-  `verify-pack: the packed artifact boots, advertises ${result.tools} tools and the workflow contract`,
+  `verify-pack: the packed artifact boots, announces v${result.serverVersion}, and advertises ${result.tools} tools and the workflow contract`,
 );

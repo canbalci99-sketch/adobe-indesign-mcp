@@ -171,7 +171,9 @@ Three scripts guard the things that go stale silently:
   that catches a `files` allowlist shipping `start-bridge.sh` without the
   `bridge-proxy.mjs` it execs. It also asserts those runtime files are present by
   name, because a handshake alone would not notice: the server only reaches for
-  the proxy when it actually runs a script.
+  the proxy when it actually runs a script. And it asserts the version announced
+  on `initialize` matches `package.json`, because a live handshake is the only
+  place a stale advertised version was ever visible.
 
 `npm run verify` runs lint + both count/doc gates + the test suite; CI runs it
 on Node 18, 20, and 22, then a separate job runs `verify:pack`.

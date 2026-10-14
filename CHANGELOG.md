@@ -207,8 +207,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manifest is stamped with the release version, and `.env.example` says why it
   deliberately leaves `SERVER_VERSION` unset — a value pinned in `.env` would
   keep reporting the version installed today after an upgrade. A 1.4.2 build now
-  answers `initialize` with `version: "1.4.2"`, checked against the built
-  artifact; `tests/unit/serverVersion.test.ts` fails if any of those drift again
+  answers `initialize` with `version: "1.4.2"`. Two gates keep it that way:
+  `tests/unit/serverVersion.test.ts` fails if the literal, the plugin manifest, or
+  a config that omits the field disagree with `package.json`, and `verify:pack`
+  reads the version the packed artifact announces — the exact place the bug was
+  visible and nothing was looking (the assertion was checked by breaking the
+  literal and watching it fail)
 - **The `document_close` trap was guarded by a check that could not see it.** The
   live smoke closed with `saveOptions: 'no'` passed explicitly, so nothing noticed
   a schema default drifting back to `'ask'` — which on a *modified* document raises

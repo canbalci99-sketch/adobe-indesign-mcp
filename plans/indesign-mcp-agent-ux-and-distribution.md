@@ -443,8 +443,11 @@ Any change to a step records what changed, why, what it blocks, and the date.
   `.env.example` explaining why it leaves `SERVER_VERSION` unset — a value pinned
   in `.env` outlives an upgrade and keeps reporting the old version. The new
   `tests/unit/serverVersion.test.ts` (3 tests) fails if any of them disagree with
-  `package.json`, which is what makes the one remaining manual step per release
-  safe to rely on. **Plan impact:** S9's `sync-server-version.ts` is superseded —
+  `package.json`, and `verify:pack` now asserts the version the *packed* artifact
+  announces on `initialize` — the one place the bug was ever visible. The gate was
+  checked by breaking the literal and watching it fail, which is the only evidence
+  a gate works. That is what makes the one remaining manual step per release safe
+  to rely on. **Plan impact:** S9's `sync-server-version.ts` is superseded —
   see S9. **Deliberately not changed:** `BridgeServer`'s handshake ack sends
   `{ type: 'connected', version: '1.0.0' }`; it is unread by both the plugin
   ("ignore non-request messages") and the proxy, and in a bridge handshake
