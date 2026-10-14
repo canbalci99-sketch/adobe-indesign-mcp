@@ -59,6 +59,13 @@ export class DocumentHandler implements IHandler {
         handler: compose(withLogging('document_listOpen'), withErrorHandling())(this.listOpen.bind(this)),
       },
       {
+        name: 'document_getState',
+        description:
+          'Get the editing state in one call: the front document (name, path, page count, size, margins), the index of that document, the names of every open document, the active layer, and how many objects are selected. Prefer this over chaining document_getInfo and document_listOpen',
+        inputSchema: {},
+        handler: compose(withLogging('document_getState'), withErrorHandling())(this.getState.bind(this)),
+      },
+      {
         name: 'document_getPageStories',
         description: 'Get all stories that appear on a specific page',
         inputSchema: {
@@ -216,6 +223,49 @@ export class DocumentHandler implements IHandler {
         });
       }
       JSON.stringify(result);
+    `;
+    const response = await this.executor.execute(code);
+    return formatResponse(response.result);
+  }
+
+  private async getState(_args: unknown, _extra: any): Promise<ToolResult> {
+    // Deliberately one script: the point of this tool is to replace the
+    // getInfo + listOpen + layer + selection sequence with a single bridge
+    // round-trip, which is where the latency and the drift between calls live.
+    const code = `
+      if (!app.activeDocument) throw new Error("No active document");
+      var doc = app.activeDocument;
+      var filePath = "";
+      try { filePath = doc.fullName.toString(); } catch(e) {}
+      var openDocuments = [];
+      for (var i = 0; i < app.documents.length; i++) {
+        openDocuments.push(app.documents[i].name);
+      }
+      var activeLayer = "";
+      try { activeLayer = doc.activeLayer.name; } catch(e) {}
+      var selectionCount = 0;
+      try { selectionCount = doc.selection.length; } catch(e) {}
+      var docIndex = -1;
+      try { docIndex = doc.index; } catch(e) {}
+      JSON.stringify({
+        activeDocument: {
+          name: doc.name,
+          filePath: filePath,
+          pages: doc.pages.length,
+          pageWidth: doc.documentPreferences.pageWidth,
+          pageHeight: doc.documentPreferences.pageHeight,
+          margins: {
+            top: doc.marginPreferences.top,
+            bottom: doc.marginPreferences.bottom,
+            left: doc.marginPreferences.left,
+            right: doc.marginPreferences.right
+          }
+        },
+        activeDocumentIndex: docIndex,
+        activeLayer: activeLayer,
+        selectionCount: selectionCount,
+        openDocuments: openDocuments
+      });
     `;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);

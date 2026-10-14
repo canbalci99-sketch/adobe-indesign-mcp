@@ -1,9 +1,9 @@
 /**
  * Tool inventory guard.
  *
- * The project has advertised three different tool counts at once (183 in the
- * repo description, 191 in package.json, 194 in the README). This test pins
- * the real number — measured by instantiating every handler exactly the way
+ * The project once advertised three different tool counts at once (183 in the
+ * repo description, 191 in package.json, 194 in the README). This test pins the
+ * real number — measured by instantiating every handler exactly the way
  * IndesignMcpServer does — so the counts can never silently drift again.
  *
  * When you add or remove a tool, update EXPECTED_TOOL_COUNT and every place
@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadHandlers } from '../helpers/loadHandlers.js';
 
-const EXPECTED_TOOL_COUNT = 194;
+const EXPECTED_TOOL_COUNT = 195;
 
 describe('tool inventory guard', () => {
   it('exposes exactly the advertised number of tools', async () => {

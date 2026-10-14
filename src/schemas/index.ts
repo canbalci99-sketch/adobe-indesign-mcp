@@ -60,7 +60,12 @@ export const saveDocumentSchema = z.object({
 });
 
 export const closeDocumentSchema = z.object({
-  saveOptions: z.enum(['yes', 'no', 'ask']).default('ask'),
+  // Defaults to 'no' because it is the only safe value: 'ask' raises a modal
+  // save dialog, and 'yes' raises a Save As dialog for a document that has never
+  // been saved. Both block the script until the bridge times out and can leave
+  // InDesign wedged. Closing without saving never prompts; callers that want the
+  // work kept must call document_save first.
+  saveOptions: z.enum(['yes', 'no', 'ask']).default('no'),
 });
 
 export const placeFileSchema = z.object({

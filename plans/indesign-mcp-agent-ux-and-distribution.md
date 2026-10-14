@@ -367,6 +367,28 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S3 landed** (verification tools), with two scope cuts the
+  plan itself licensed. **`document_getCapabilities` deferred**: the plan said to
+  ship it only if S2's contract referenced it, and S2 does not — no consumer, so
+  no tool. **`document_id` on mutating tools deferred**: `app.activeDocument` is
+  written inline in 191 places across 33 handlers with no shared resolver, so the
+  plan's "optional" qualifier is doing real work — that is a refactor, not an
+  increment, and doing it half-way would be worse than not doing it. What landed:
+  **`document_getState`** (one round-trip for state the model otherwise assembles
+  from four tools) and **`preview_document`** extended with `documentIndex` and a
+  4 MB output cap that re-exports at a fitting resolution before it fails.
+  `preview_document` also no longer swallows its own errors into prose — the one
+  seam S1a left open, because that handler caught its own exceptions. Page
+  selection in preview was already present; the plan listed it as a gap and was
+  wrong. Tool count 194 → 195, propagated by hand across the README, the package
+  description, the smoke test and both guards; the inventory guard then caught the
+  README handler-table row the hand-propagation missed, which is the guard working
+  as designed. **G13 resolved on the maintainer's call:** `document_close` now
+  defaults `saveOptions` to `"no"` — the only default that cannot raise a modal
+  dialog ('ask' prompts, and 'yes' prompts for a never-saved document).
+  Verified without InDesign by driving the real server over stdio: 195 tools, the
+  new tool listed, the new preview field present, and `document_close`'s schema
+  default now `"no"`.
 - **2026-10-14** — **S2 landed** (the workflow contract), ahead of S3. The plan
   sequenced S2 after S3 only for the `document_id` "pin the document" phrasing;
   everything else stands alone, so waiting on S3 would have withheld the plan's

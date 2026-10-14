@@ -18,9 +18,9 @@ describe('DocumentHandler', () => {
       expect(handler.name).toBe('document');
     });
 
-    it('should expose 8 tools', () => {
+    it('should expose 9 tools', () => {
       const handler = new DocumentHandler(createMockExecutor() as any);
-      expect(handler.tools).toHaveLength(8);
+      expect(handler.tools).toHaveLength(9);
     });
 
     it('should export all expected tools', () => {
@@ -32,6 +32,7 @@ describe('DocumentHandler', () => {
       expect(names).toContain('document_close');
       expect(names).toContain('document_getInfo');
       expect(names).toContain('document_listOpen');
+      expect(names).toContain('document_getState');
     });
 
     it('should have inputSchema as a plain object (not a ZodSchema)', () => {
@@ -267,6 +268,63 @@ describe('DocumentHandler', () => {
       expect(parsed.pages).toBe(10);
       expect(parsed.margins.top).toBe(20);
       expect(parsed.facingPages).toBe(true);
+    });
+  });
+
+  describe('document_getState', () => {
+    it('gathers document, layer, selection and open documents in a single round-trip', async () => {
+      const mock = createMockExecutor();
+      mock.execute.mockResolvedValue({
+        result: {
+          activeDocument: {
+            name: 'MyDoc.indd',
+            filePath: '/x/MyDoc.indd',
+            pages: 10,
+            pageWidth: 210,
+            pageHeight: 297,
+            margins: { top: 20, bottom: 20, left: 15, right: 15 },
+          },
+          activeDocumentIndex: 0,
+          activeLayer: 'Layer 1',
+          selectionCount: 2,
+          openDocuments: ['MyDoc.indd', 'Other.indd'],
+        },
+      });
+      const handler = new DocumentHandler(mock as any);
+
+      const tool = handler.tools.find((t) => t.name === 'document_getState')!;
+      const result = await tool.handler({}, {});
+
+      // One script, one round-trip — the whole reason this tool exists.
+      expect(mock.execute).toHaveBeenCalledTimes(1);
+      const code = mock.execute.mock.calls[0][0] as string;
+      expect(code).toContain('activeLayer');
+      expect(code).toContain('app.documents');
+
+      const parsed = JSON.parse((result.content[0] as any).text);
+      expect(parsed.activeDocument.name).toBe('MyDoc.indd');
+      expect(parsed.activeLayer).toBe('Layer 1');
+      expect(parsed.selectionCount).toBe(2);
+      expect(parsed.openDocuments).toEqual(['MyDoc.indd', 'Other.indd']);
+    });
+
+    it('reports the active document index so preview_document can target it', async () => {
+      const mock = createMockExecutor();
+      mock.execute.mockResolvedValue({
+        result: {
+          activeDocument: { name: 'A.indd' },
+          activeDocumentIndex: 3,
+          activeLayer: '',
+          selectionCount: 0,
+          openDocuments: ['A.indd'],
+        },
+      });
+      const handler = new DocumentHandler(mock as any);
+
+      const tool = handler.tools.find((t) => t.name === 'document_getState')!;
+      const result = await tool.handler({}, {});
+      const parsed = JSON.parse((result.content[0] as any).text);
+      expect(parsed.activeDocumentIndex).toBe(3);
     });
   });
 

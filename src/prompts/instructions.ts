@@ -26,18 +26,19 @@ SESSION BOOTSTRAP
 - Check the connection once at the start with document_listOpen, not every turn.
 
 STATE BEFORE ACTION
-- Call document_getInfo before mutating an existing document and treat its output
-  as the source of truth for page count, dimensions and margins. Do not assume
-  geometry.
-- Tools act on the front document. If document_listOpen shows more than one
+- Call document_getState before mutating an existing document: it returns the
+  front document's geometry, the other open documents, the active layer and the
+  selection in one round-trip, and its output is the source of truth. Do not
+  assume geometry.
+- Tools act on the front document. If document_getState shows more than one
   document open, do not assume the front one is the intended target — ask which
   document, or open the intended one first.
 
 CLOSING AND SAVING
-- document_close defaults saveOptions to "ask", which raises a modal save dialog
-  that blocks the script until the bridge times out and can leave InDesign
-  wedged. Always pass an explicit saveOptions of "yes" or "no"; never rely on the
-  default when acting unattended.
+- document_close defaults saveOptions to "no": it closes without saving and can
+  never raise a dialog. Call document_save first when the work should be kept.
+  Never pass "ask" while acting unattended — it opens a modal save dialog that
+  blocks the script until the bridge times out and can leave InDesign wedged.
 - document_save defaults to saving in place. Pass filePath to save as.
 
 PREFER TYPED TOOLS OVER RAW SCRIPT
@@ -55,7 +56,9 @@ ERRORS ARE STRUCTURED
 
 VERIFY WHAT YOU CHANGED
 - Call preview_document to look at the result before reporting success, rather
-  than assuming a change landed as intended.
+  than assuming a change landed as intended. It renders the front document by
+  default; pass the activeDocumentIndex that document_getState reports to render
+  another open document.
 
 MULTI-STEP EDITS
 - Wrap a sequence of mutations in undo_beginGroup / undo_endGroup so one Undo

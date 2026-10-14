@@ -40,6 +40,10 @@ const FIXTURES: Record<InDesignErrorCode, { message?: string; code?: string }> =
   file_not_found: { message: 'File not found' },
   missing_font: { message: 'Missing font: Helvetica' },
   link_missing: { message: 'Link is missing' },
+  output_too_large: {
+    message: 'preview is 5000000 bytes at 72 ppi, over the 4000000-byte cap the bridge can return',
+    code: 'OUTPUT_TOO_LARGE',
+  },
   unknown: { message: 'something completely unrelated' },
 };
 
@@ -69,6 +73,7 @@ describe('classifyError', () => {
       'file_not_found',
       'missing_font',
       'link_missing',
+      'output_too_large',
       'unknown',
     ];
     expect(Object.keys(FIXTURES).sort()).toEqual([...declared].sort());
@@ -107,6 +112,7 @@ describe('suggestedToolFor', () => {
       'document_listOpen',
       'font_missing_check',
       'image_getLinks',
+      'preview_document',
     ]);
   });
 });
@@ -140,6 +146,16 @@ describe('toErrorEnvelope', () => {
   it('is JSON-serialisable, since the content is JSON text', () => {
     const envelope = toErrorEnvelope({ message: 'Object is invalid' });
     expect(JSON.parse(JSON.stringify(envelope))).toEqual(envelope);
+  });
+
+  it('carries the remedy arguments when the rule provides them', () => {
+    const envelope = toErrorEnvelope({
+      message: 'output too large',
+      code: 'OUTPUT_TOO_LARGE',
+    });
+    expect(envelope.code).toBe('output_too_large');
+    expect(envelope.suggested_next_tool).toBe('preview_document');
+    expect(envelope.suggested_args).toEqual({ resolutionPpi: 96 });
   });
 });
 

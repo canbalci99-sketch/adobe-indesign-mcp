@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Structured error envelopes.** A failing tool call now returns a JSON envelope
   — `{ ok: false, code, message, suggested_next_tool?, suggested_args? }` —
   instead of bare prose, so a host LLM can tell a missing document from a stale
-  reference from a timeout instead of guessing. Fifteen failure classes are
+  reference from a timeout instead of guessing. Sixteen failure classes are
   classified. Where a remedy exists the envelope names the tool to call next: a
   bad frame index (`text_getContent` with `frameIndex: 999`) now answers
   `invalid_reference` and suggests `document_getInfo`, and a timeout suggests
@@ -24,9 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `instructions` to the host covering the bridge bootstrap, state-before-action,
   the `document_close` save-dialog trap, a warning against raw-ExtendScript
   workarounds, the error-envelope shape, `preview_document` for verification,
-  and `undo_beginGroup` / `undo_endGroup` for multi-step edits. About 610 tokens,
+  and `undo_beginGroup` / `undo_endGroup` for multi-step edits. About 680 tokens,
   paid once per session. Every tool it names is checked against the live
   registry by `tests/unit/instructions.test.ts`
+- **`document_getState`** returns the front document's geometry, that document's
+  index, every open document, the active layer and the selection count in **one
+  bridge round-trip**, replacing the `document_getInfo` + `document_listOpen` +
+  layer + selection sequence. The tool count is now 195; the README, the package
+  description and the inventory guard were updated together, and the guard caught
+  a handler-table row that had been missed
+- **`preview_document` takes `documentIndex`** to render any open document rather
+  than only the front one, and **caps the exported file at 4 MB**: a render over
+  the cap is re-exported once at the resolution that fits, and a render that
+  cannot fit even at 72 ppi fails with code `output_too_large` and
+  `suggested_args` for the retry
 
 ### Changed
 - **Error responses are JSON text, not prose.** The failing message is preserved
@@ -34,6 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `isError: true` is unchanged. This applies to exceptions caught by
   `withErrorHandling` (all tools) and to ExtendScript runtime errors surfaced by
   `formatResponse`
+- **`document_close` now defaults `saveOptions` to `"no"`** (was `"ask"`).
+  `"ask"` raised a modal save dialog that blocked the script until the bridge
+  timed out and could leave InDesign wedged, and `"yes"` raises a Save As dialog
+  for a document that has never been saved. `"no"` is the only default that
+  cannot prompt. A caller that wants the work kept must call `document_save`
+  first. Explicit values are unaffected
+- **`preview_document` failures are structured envelopes, not prose.** It used to
+  catch its own errors and return a `preview failed: …` text block, which
+  bypassed the error contract every other tool follows
 
 ## [1.4.2] - 2026-09-27
 

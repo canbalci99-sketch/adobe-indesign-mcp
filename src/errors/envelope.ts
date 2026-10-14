@@ -27,6 +27,7 @@ export type InDesignErrorCode =
   | 'file_not_found'
   | 'missing_font'
   | 'link_missing'
+  | 'output_too_large'
   | 'unknown';
 
 export interface InDesignErrorEnvelope {
@@ -46,6 +47,8 @@ interface Rule {
   pattern: RegExp;
   code: InDesignErrorCode;
   suggested_next_tool?: string;
+  /** Arguments to pass when retrying with `suggested_next_tool`. */
+  suggested_args?: Record<string, unknown>;
 }
 
 /**
@@ -56,6 +59,15 @@ const RULES: readonly Rule[] = [
   // A blocked construct is a deliberate refusal, not a malfunction. It carries
   // no remedy: the caller has to change what it sent.
   { pattern: /blocked by the indesign mcp security policy/i, code: 'script_blocked_by_policy' },
+
+  // An output that will not fit the transport. Not an object-model error, and
+  // the remedy is to ask for less, so it belongs with the refusal classes.
+  {
+    pattern: /over the \d+-byte cap|output too large|payload too large/i,
+    code: 'output_too_large',
+    suggested_next_tool: 'preview_document',
+    suggested_args: { resolutionPpi: 96 },
+  },
 
   {
     pattern: /bridge is not connected|not connected to|no client connected/i,
@@ -130,6 +142,7 @@ const ERROR_CODE_MAP: Record<string, InDesignErrorCode> = {
   CANCELLED: 'execution_cancelled',
   BRIDGE_ERROR: 'bridge_error',
   EXTENDSCRIPT_RUNTIME_ERROR: 'extendscript_runtime_error',
+  OUTPUT_TOO_LARGE: 'output_too_large',
 };
 
 export function classifyError(message: string, code?: string): InDesignErrorCode {
@@ -144,8 +157,11 @@ export function classifyError(message: string, code?: string): InDesignErrorCode
 export function suggestedToolFor(message: string, code?: string): string | undefined {
   // classifyError already resolves transport codes ahead of message patterns,
   // so looking the classified code up in the rule table is enough.
-  const classified = classifyError(message, code);
-  return RULES.find((r) => r.code === classified && r.suggested_next_tool)?.suggested_next_tool;
+  return ruleFor(classifyError(message, code))?.suggested_next_tool;
+}
+
+function ruleFor(code: InDesignErrorCode): Rule | undefined {
+  return RULES.find((r) => r.code === code && r.suggested_next_tool);
 }
 
 /**
@@ -160,15 +176,18 @@ export function toErrorEnvelope(input: {
   stack?: string;
   suggestedArgs?: Record<string, unknown>;
 }): InDesignErrorEnvelope {
+  const code = classifyError(input.message, input.code);
+  const rule = ruleFor(code);
   const envelope: InDesignErrorEnvelope = {
     ok: false,
-    code: classifyError(input.message, input.code),
+    code,
     message: input.message,
   };
 
-  const suggested = suggestedToolFor(input.message, input.code);
-  if (suggested) envelope.suggested_next_tool = suggested;
+  if (rule?.suggested_next_tool) envelope.suggested_next_tool = rule.suggested_next_tool;
+  // An explicit override wins over the rule's canned arguments.
   if (input.suggestedArgs) envelope.suggested_args = input.suggestedArgs;
+  else if (rule?.suggested_args) envelope.suggested_args = rule.suggested_args;
   if (typeof input.line === 'number') envelope.line = input.line;
   if (input.file) envelope.file = input.file;
   if (input.stack) envelope.stack = input.stack;

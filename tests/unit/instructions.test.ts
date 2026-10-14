@@ -52,10 +52,17 @@ describe('INDESIGN_MCP_INSTRUCTIONS', () => {
     ).toEqual([]);
   });
 
-  it('calls out the document_close save dialog, which wedges InDesign', () => {
+  it('documents the document_close save-dialog trap and the safe default', () => {
     expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/document_close/);
     expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/saveOptions/);
-    expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/"ask"/);
+    // The default is "no" precisely because it cannot prompt; "ask" is named
+    // only as the value to avoid.
+    expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/defaults saveOptions to "no"/);
+    expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/Never pass "ask"/);
+  });
+
+  it('points at document_getState so the state tool is discoverable', () => {
+    expect(INDESIGN_MCP_INSTRUCTIONS).toMatch(/document_getState/);
   });
 
   it('warns against raw-script workarounds and names the blocking code', () => {
