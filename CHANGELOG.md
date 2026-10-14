@@ -84,7 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **once** and asserts the document is restored, then checks the preset error path
   and a real export. Running it found the undo-group and undo-property bugs listed
   under _Fixed_; with those fixed it flows the whole story and one Undo restores
-  the page count
+  the page count. **Measured live:** that flow is **1 tool call and 215 bytes** of
+  JSON, against **6 calls and 786 bytes** for the nearest chain of atomic tools —
+  which cannot place the text at all, because no tool places a text story into a
+  frame
 - **An opt-in success envelope (`RESPONSE_ENVELOPE_SUCCESS`).** Failures were
   already enveloped; successful results were not, so a host had to branch on
   `isError` and then guess the shape. Setting the flag (or

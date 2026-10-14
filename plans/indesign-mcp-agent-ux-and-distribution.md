@@ -202,6 +202,12 @@ them into a multi-step flow.
 
 **Gate to proceed further:** measure turns and tokens against the atomic
 equivalent. If a recipe does not materially beat the chain, do not build more.
+**Measured 2026-10-14 (see the mutation entry):** the two-page flow is
+**1 call / 215 bytes** via `recipe_flowTextStory` versus **6 calls / 786 bytes**
+for the nearest expressible atomic chain — which additionally *cannot place the
+text at all*, because no tool places a text story into a frame. The gate is met
+on round-trips and payload; the token half with a model in the loop is stated as
+unmeasured.
 
 **Verification.** Live smoke per recipe; assert one Undo reverts the whole outcome; record the turn/token delta.
 
@@ -374,6 +380,32 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S4 measurement recorded; the exit criterion is met.** The
+  plan's S4 gate is "a *measured* advantage", not a merge, and it had been left
+  open because InDesign was closed. With it open, the same outcome — a 300-line
+  text file flowed across two pages — was measured both ways over the real MCP
+  server (port 8133, a scratch document, closed without saving):
+  - **Path A, `recipe_flowTextStory`: 1 tool call, 215 bytes** (111 request + 104
+    response).
+  - **Path B, the nearest chain expressible from atomic tools: 6 calls, 786
+    bytes** (281 + 505) — and it **does not achieve the outcome**. It creates the
+    frames, adds the page, links them and re-reads `overflows`, but it cannot
+    *place the text file at all*: no tool among the 197 places text into a frame.
+    `image_place`/`image_relink` are for images; `recipe_flowTextStory` is the
+    only tool that places a text story.
+  So the advantage is not a rename — it is **≥6× the round trips, ~3.7× the JSON,
+  and a capability the atomic surface does not have.** The call count grows with
+  the flow: the mechanical chain is `text_addFrame` + a `text_getTextFrames`
+  overflow read + `page_add` + `text_addFrame` + `text_linkFrames` + a final read
+  = 6 for two pages, +3 per extra page, *plus* the place step that has no tool.
+  **Stated limit:** the token cost of the alternative is not byte-measured here.
+  The recipe embeds ~1.4 KB of ExtendScript (`RecipeHandler.ts` lines 158–209) —
+  the agent's only other route is to author that itself through `script_execute`,
+  which the workflow contract tells it not to do; that authoring cost is real but
+  is a model-turn quantity, not a byte count. The round-trip and payload halves
+  are measured; the model-in-the-loop half remains qualitative. Because the gate
+  is now met, S4 is no longer blocked — but per the deferred table, "recipes
+  beyond two" still waits on a *token* advantage with a model in the loop.
 - **2026-10-14** — **S1b landed behind a config flag (open question 4 resolved).**
   The failure envelope (S1a) stays always-on and additive. The *success* shape —
   the half the plan flagged as the response-contract change for all tools — now
@@ -430,7 +462,9 @@ Any change to a step records what changed, why, what it blocks, and the date.
   description was corrected: it makes each *call* one undo step; it cannot merge
   separate calls (also proven live). 8 new unit tests pin the grouping shape, the
   corrected `classifyError` precedence, and the honest `undo_history`.
-- **2026-10-14** — **S4 built, measurement still open.** The plan asked for two
+- **2026-10-14** — **S4 built, measurement still open.** **[Superseded later the
+  same day: the measurement was recorded — see the newest entry at the top of this
+  protocol.]** The plan asked for two
   recipes with a *measured* advantage and said the measurement decides whether S4
   expands. The two are built and green on `main` (`75029a2`, CI 18/20/22 +
   package); the measurement is **not** done, because it needs InDesign and
@@ -470,6 +504,10 @@ Any change to a step records what changed, why, what it blocks, and the date.
   names, that one Undo really reverts the whole flow, and the turn/token delta
   versus the atomic chain. Until that is recorded, S4 has not met its exit
   criteria and must not expand.
+  **[Later the same day: the gate was run and all of these are now verified —
+  `place`+`nextTextFrame` flows the story (2 frames, page added, no overflow),
+  one Undo restores the page count, `[PDF/X-3:2002]` exports, and the round-trip
+  and payload delta is measured. See the newest mutation entry.]**
 - **2026-10-14** — **S8 landed** (documentation suite), the other step unblocked
   on day one besides S5. Four docs, all written against the code rather than the
   README: `architecture.md` (the four-process macOS path with the real hop labels
