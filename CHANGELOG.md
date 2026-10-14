@@ -114,7 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timed out and could leave InDesign wedged, and `"yes"` raises a Save As dialog
   for a document that has never been saved. `"no"` is the only default that
   cannot prompt. A caller that wants the work kept must call `document_save`
-  first. Explicit values are unaffected
+  first. Explicit values are unaffected, and `npm run smoke:macos` now closes a
+  *dirty* document relying on that default, so a regression to `"ask"` is caught
+  live instead of on a user's machine
 - **`preview_document` failures are structured envelopes, not prose.** It used to
   catch its own errors and return a `preview failed: …` text block, which
   bypassed the error contract every other tool follows

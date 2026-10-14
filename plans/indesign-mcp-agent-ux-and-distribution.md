@@ -176,7 +176,14 @@ payload. The prompt also claimed no preview tool exists. **False:**
 
 **Verification.** Live smoke vs InDesign 2026 for each tool; a chunking test with an image larger than one frame; a test that a hostile `document_id` is rejected.
 
-**Exit criteria.** Preview honours `document_id` and a size cap; state is one round-trip; capabilities names the live backend correctly.
+**Exit criteria.** Preview honours `document_id` and a size cap; state is one
+round-trip; capabilities names the live backend correctly. **[rev 2026-10-14 —
+corrected to match what shipped.]** `document_id` was *deferred*, so this exit
+criterion as written was never met and could not be: pinning a document needs a
+shared resolver for the 191 inline `app.activeDocument` sites, which is a
+refactor, not an increment (see the S3 mutation entry). What actually shipped:
+`preview_document` with `documentIndex` plus a 4 MB cap, and `document_getState`.
+`document_getCapabilities` was dropped for having no consumer.
 
 **Rollback.** Additive handlers; `preview_document` changes revert independently.
 
@@ -318,9 +325,23 @@ cannot drift from `package.json`, `validate-release-tag.sh`.
 bridge never listened.
 
 **Tasks.** Promote `scripts/smoke-macos.mjs` into a suite: the existing path,
-one per recipe, a multi-document `document_id`-pinning scenario, and the
-`document_close` modal hang. Then the Windows COM equivalents — **the only thing
-that discharges G11.**
+one per recipe, a multi-document scenario, and the `document_close` default-safety
+check. **[rev 2026-10-14]** the original list said "a multi-document
+`document_id`-pinning scenario", but `document_id` was *deferred* in S3 — the
+scenario must exercise `documentIndex` / active-document isolation instead, and
+should record the limitation plainly (tools act on `app.activeDocument`; there is
+no pin). The `document_close` scenario is now a check that closing a **dirty**
+document while relying on the schema default returns instead of hanging — the
+regression that matters, since passing `saveOptions: 'no'` explicitly cannot see a
+default that drifts back to `'ask'`. Then the Windows COM equivalents — **the only
+thing that discharges G11.**
+
+**Status 2026-10-14.** The macOS half is done: the existing path, one live
+scenario per recipe (`scripts/smoke-recipes.mjs`), and the `document_close`
+default-safety check all pass against InDesign 2026 (`smoke:macos` 11/11,
+`smoke:recipes` 17/17). The multi-document isolation scenario is **not** built;
+it needs a decision on whether to pin documents first. The Windows half is open —
+see below.
 
 **Verification.** All pass locally vs InDesign 2026; Windows scenarios run on a real host or are explicitly marked unverified.
 
@@ -380,6 +401,28 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **Both live gates green; S10's macOS half done; a plan-vs-code
+  drift corrected.** Re-ran the two live gates against InDesign 2026 with the
+  fixes in place. **`smoke:recipes` 17/17** — the recipe flows the story, one Undo
+  restores the page count, and the bad preset now returns `invalid_arguments` (was
+  `bridge_error`) with the valid names listed. **`smoke:macos` 11/11** — a bad
+  reference now returns `invalid_reference` with `next=document_getInfo` (was
+  `bridge_error`), which is the only check that proves the classification fix
+  survives all four processes. Added the S10 `document_close` scenario: close a
+  **dirty** document while omitting `saveOptions`, relying on the schema default.
+  The existing check passed `'no'` explicitly, so it could not observe the one
+  regression that matters — a default drifting back to `'ask'`, which raises a
+  modal dialog that blocks until the bridge times out and leaves InDesign wedged.
+  **Plan correction:** S3's exit criteria and S10's task list both named
+  `document_id`, but S3 *deferred* it (no shared resolver for the 191 inline
+  `app.activeDocument` sites). A plan whose exit criteria name a capability the
+  code deliberately lacks is a trap for the next reader, so S3's exit criteria now
+  state what shipped (`documentIndex` + a 4 MB cap, `document_getState`) and S10's
+  scenario is specified as `documentIndex` / active-document isolation. S10 is
+  therefore *partially* done: the per-recipe scenarios and the close-safety check
+  exist and pass; the multi-document isolation scenario is not built (it needs a
+  decision on whether to pin documents first), and the Windows half is still the
+  only thing that discharges G11.
 - **2026-10-14** — **S4 measurement recorded; the exit criterion is met.** The
   plan's S4 gate is "a *measured* advantage", not a merge, and it had been left
   open because InDesign was closed. With it open, the same outcome — a 300-line

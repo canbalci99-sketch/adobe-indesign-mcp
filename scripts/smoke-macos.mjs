@@ -14,8 +14,10 @@
  *
  *   npm run smoke:macos
  *
- * Exits non-zero on the first real failure. It creates one document, writes to
- * it, and closes it without saving.
+ * Exits non-zero on the first real failure. It creates a document, writes to it,
+ * closes it, then creates a second, dirties it, and closes it relying on the
+ * default `saveOptions` — the check that would catch a default drifting back to
+ * a value that raises a modal dialog.
  */
 import { spawn, execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -238,6 +240,34 @@ try {
       arguments: { saveOptions: 'no' },
     });
     check('document_close', !closed?.result?.isError, textOf(closed).slice(0, 120));
+
+    // …but the check above passes 'no' explicitly, so it cannot notice the one
+    // regression that matters: a default that drifts back to 'ask'. That is the
+    // trap G13 is about — on a *modified* document 'ask' raises a modal save
+    // dialog, the script blocks until the bridge times out and InDesign is left
+    // wedged. So close a dirty document relying on the schema default and prove
+    // it returns instead of hanging.
+    await request('tools/call', {
+      name: 'document_create',
+      arguments: { width: 595.28, height: 841.89, pages: 1 },
+    });
+    await request('tools/call', {
+      name: 'text_addFrame',
+      arguments: {
+        pageIndex: 0,
+        bounds: { top: 50, left: 50, bottom: 120, right: 300 },
+        content: 'DIRTY',
+      },
+    });
+    const closedByDefault = await request('tools/call', {
+      name: 'document_close',
+      arguments: {},
+    });
+    check(
+      'document_close of a modified document is safe with the default saveOptions',
+      !closedByDefault?.result?.isError,
+      textOf(closedByDefault).slice(0, 120),
+    );
   }
 } catch (err) {
   check('harness', false, String(err));
