@@ -341,7 +341,10 @@ scenario per recipe (`scripts/smoke-recipes.mjs`), and the `document_close`
 default-safety check all pass against InDesign 2026 (`smoke:macos` 11/11,
 `smoke:recipes` 17/17). The multi-document isolation scenario is **not** built;
 it needs a decision on whether to pin documents first. The Windows half is open —
-see below.
+`WINDOWS.md` now has a *Verification status* section stating plainly that the COM
+path is shipped but unexercised by this project (unit-tested platform branch, no
+live `cscript` run), which is the "closed or stated plainly" half of the exit
+criterion. What remains is a real Windows host.
 
 **Verification.** All pass locally vs InDesign 2026; Windows scenarios run on a real host or are explicitly marked unverified.
 
