@@ -82,9 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   advertised "195" that had to move. **`npm run smoke:recipes`** is the live gate
   for both: it flows a long file, asserts the page count grew as reported, undoes
   **once** and asserts the document is restored, then checks the preset error path
-  and a real export. It has **not** been run yet — InDesign was closed — so the
-  plan's measured advantage is still open and S4 must not expand until it is
-  recorded
+  and a real export. Running it found the undo-group and undo-property bugs listed
+  under _Fixed_; with those fixed it flows the whole story and one Undo restores
+  the page count
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and
@@ -113,6 +113,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment in `scripts/smoke-macos.mjs` was corrected. The advertised test count
   and the `CONTRIBUTING` test figure were refreshed at the same time, and the
   README gained a pointer to `docs/architecture.md`
+- **`undo_beginGroup` no longer overclaims.** Its description, and the workflow
+  contract's "multi-step edits" note, said subsequent tool calls become a single
+  undo step. That was never possible: each call is its own undo transaction and
+  InDesign exposes no primitive to merge two of them. The wording now states what
+  the flag really does — each subsequent call is internally one undo step, so one
+  Undo reverts that whole call, while separate calls stay separate entries
 
 ### Fixed
 - **`export_batchFolder` matched any character before `.indd`.** The strip regex
@@ -136,6 +142,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A second template-literal escape bug in the ExtendScript JSON polyfill's
   comment**, where `\s` and `\(` were being dropped. Cosmetic (it is a comment),
   but fixed for consistency with the `export_batchFolder` one above
+- **Every script failed while an undo group was open.** `wrapExtendScript` set
+  `app.scriptPreferences.undoMode`, a property InDesign does not have: it threw
+  "Object does not support the property or method 'undoMode'", so **every** tool
+  call made after `undo_beginGroup` failed outright. The live recipe gate found it
+  on its first run. The supported mechanism is
+  `app.doScript(body, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT)`
+  — the body passed as a *string* so `doScript` returns the program's completion
+  value, and placed last, because the old trailing assignment would have replaced
+  the result even if the property had existed
+- **`undo`, `redo` and `undo_history` read properties that do not exist.**
+  `document.undoable` and `document.redoable` are not part of InDesign's DOM, so
+  reading them threw "Object does not support the property or method 'undoable'"
+  and `undo` and `undo_history` failed on every call (`redo` never checked its
+  own precondition). `undo`/`redo` now attempt the operation inside a `try`/`catch`
+  and report what happened; `undo_history` states plainly that the DOM exposes no
+  undo depth, instead of naming fields that are always undefined (`app.undoHistory`
+  reflects only `length`, which is always `0`)
+- **The error envelope's classification table was unreachable in production.**
+  The macOS bridge reports *every* InDesign-side failure as `BRIDGE_ERROR`, and
+  `classifyError` treated a transport code as authoritative — so "Object is
+  invalid" or "PDF export preset not found" always arrived as `bridge_error` and
+  never as `invalid_reference` or `invalid_arguments`. The two catch-all codes
+  (`BRIDGE_ERROR`, `EXTENDSCRIPT_RUNTIME_ERROR`) now let the message rules decide
+  and fall back to the generic code only when no rule matches; specific transport
+  codes (timeout, cancelled, output too large) stay authoritative. The live smoke
+  caught this by classifying a bad reference as `bridge_error`
 
 ## [1.4.2] - 2026-09-27
 

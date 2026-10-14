@@ -413,8 +413,8 @@ _5 tools_
 | `undo` | Undo the last operation |
 | `redo` | Redo the last undone operation |
 | `undo_history` | Get undo/redo state information |
-| `undo_beginGroup` | Begin an undo group — subsequent tool calls become a single undo step. Call undo_endGroup() to restore normal behavior. |
-| `undo_endGroup` | End the undo group and restore normal undo behavior |
+| `undo_beginGroup` | Begin an undo group. While active, each subsequent script runs as a single undo step, so one Undo reverts a whole tool call (e.g. a multi-step recipe). It cannot merge separate calls into one step — each call is still its own undo entry. Call undo_endGroup() to restore the default. |
+| `undo_endGroup` | End the undo group and restore the default undo behavior |
 
 ## AnchoredObject
 

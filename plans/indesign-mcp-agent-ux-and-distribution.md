@@ -367,6 +367,46 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S4 gate run live; it found three P-level bugs and the fix
+  changes the undo mechanism.** InDesign was opened, so `npm run smoke:recipes`
+  ran for real. It immediately falsified three things the unit tests "passed":
+  (1) `wrapExtendScript` set `app.scriptPreferences.undoMode`, which InDesign does
+  not have — it threw `Object does not support the property or method 'undoMode'`,
+  so **every** script run while an undo group was open failed, which is why
+  `recipe_flowTextStory` returned `bridge_error` and every recipe assertion
+  cascaded. The supported primitive is
+  `app.doScript(body, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT)`:
+  the body is passed as a **string** so `doScript` returns the program's completion
+  value, and it must be the last statement (the old trailing assignment would have
+  replaced the result even had the property existed). Sanitising now happens
+  *before* the body is embedded, so the filter never has to look inside a string
+  literal. A throwaway matrix on the live app established the semantics: a grouped
+  change is reverted by the **first** plain `undo`, whereas ungrouped multi-op
+  scripts need two; and grouping the `undo` call itself throws
+  `Impossibile annullare l'ultimo comando`, so `undo` must stay ungrouped.
+  (2) `undo`, `redo` and `undo_history` read `document.undoable`/`redoable`, which
+  are not in the DOM (same "Object does not support the property or method"
+  failure); `undo`/`undo_history` failed on every call. They now attempt the
+  operation in `try`/`catch`; `undo_history` reports honestly that the DOM exposes
+  no undo depth (`app.undoHistory` reflects only `length`, always `0`).
+  (3) **The whole S1a rules table was unreachable in production.** The macOS
+  bridge labels every InDesign-side failure `BRIDGE_ERROR`, and `classifyError`
+  treated any transport code as authoritative, so "Object is invalid" and "PDF
+  export preset not found" always came back `bridge_error`. The two catch-all
+  codes now yield to the message rules and fall back to themselves; specific
+  transport codes (timeout/cancelled/output-too-large) stay authoritative. The
+  live smoke had been reporting this for a while (`bad reference → code=bridge_error`)
+  and it was read as cosmetic until the preset path needed it. **Verified live
+  after the fix:** `recipe_flowTextStory` flowed the whole story
+  (`framesCreated 2`, `pagesUsed [0,1]`, `pagesAdded 1`, `overflows false`,
+  `storyLength 17891`) and **one `undo` restored the page count 2 → 1** — the S4
+  exit criterion. `recipe_exportPreset` exported with `[PDF/X-3:2002]` and wrote
+  the file. **Still open:** a re-run to confirm the **bad-preset** path now returns
+  `invalid_arguments` (fixed in code, 1038 unit tests green, but not yet observed
+  live) and the turn/token delta versus the atomic chain. `undo_beginGroup`'s
+  description was corrected: it makes each *call* one undo step; it cannot merge
+  separate calls (also proven live). 8 new unit tests pin the grouping shape, the
+  corrected `classifyError` precedence, and the honest `undo_history`.
 - **2026-10-14** — **S4 built, measurement still open.** The plan asked for two
   recipes with a *measured* advantage and said the measurement decides whether S4
   expands. The two are built and green on `main` (`75029a2`, CI 18/20/22 +

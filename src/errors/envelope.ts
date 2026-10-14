@@ -152,12 +152,30 @@ const ERROR_CODE_MAP: Record<string, InDesignErrorCode> = {
   OUTPUT_TOO_LARGE: 'output_too_large',
 };
 
+/**
+ * Codes the bridge uses as a catch-all for "the script failed". They are the
+ * *least* specific thing the bridge can say, so they must not outrank the
+ * script's own message — the macOS bridge reports every InDesign-side failure
+ * (a stale reference, a missing document, a bad preset) as BRIDGE_ERROR, and if
+ * that code short-circuited the rules then the whole classification table would
+ * be unreachable in production, which is exactly what the live smoke found.
+ * The specific transport codes above stay authoritative.
+ */
+const GENERIC_CODES: ReadonlySet<string> = new Set(['BRIDGE_ERROR', 'EXTENDSCRIPT_RUNTIME_ERROR']);
+
 export function classifyError(message: string, code?: string): InDesignErrorCode {
-  // A transport code is authoritative: the bridge knows more than a regex does.
-  if (code && ERROR_CODE_MAP[code]) return ERROR_CODE_MAP[code];
+  const mapped = code ? ERROR_CODE_MAP[code] : undefined;
+
+  // A *specific* transport code is authoritative: the bridge knows more about a
+  // timeout or a cancellation than a regex does.
+  if (mapped && !(code && GENERIC_CODES.has(code))) return mapped;
+
   for (const rule of RULES) {
     if (rule.pattern.test(message)) return rule.code;
   }
+
+  // A generic code whose message matches nothing still gets its own envelope.
+  if (mapped) return mapped;
   return 'unknown';
 }
 

@@ -52,7 +52,10 @@ describe('UndoHandler', () => {
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
       expect(code).toContain('undo()');
-      expect(code).toContain('undoable');
+      // `document.undoable` does not exist in InDesign's DOM — reading it threw,
+      // which is why this tool always failed. The copy must not reintroduce it.
+      expect(code).not.toContain('undoable');
+      expect(code).toContain('try');
       expect(result.content[0]).toHaveProperty('type', 'text');
     });
 
@@ -98,9 +101,9 @@ describe('UndoHandler', () => {
   });
 
   describe('undo_history', () => {
-    it('should call executor.execute with code containing undoable and redoable properties', async () => {
+    it('must not query undoable/redoable, which do not exist in the DOM', async () => {
       const mock = createMockExecutor();
-      mock.execute.mockResolvedValue({ result: { undoable: true, redoable: false } });
+      mock.execute.mockResolvedValue({ result: { undoAvailable: null, redoAvailable: null } });
       const handler = new UndoHandler(mock as any);
 
       const tool = handler.tools.find((t) => t.name === 'undo_history')!;
@@ -108,15 +111,21 @@ describe('UndoHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('undoable');
-      expect(code).toContain('redoable');
+      // These two properties threw "Object does not support the property or
+      // method 'undoable'" on every call — the tool never worked.
+      expect(code).not.toContain('undoable');
+      expect(code).not.toContain('redoable');
       expect(code).toContain('JSON.stringify');
       expect(result.content[0]).toHaveProperty('type', 'text');
     });
 
-    it('should return parsed undo/redo state', async () => {
+    it('should report that undo depth is not exposed', async () => {
       const mock = createMockExecutor();
-      const state = { undoable: true, redoable: false };
+      const state = {
+        undoAvailable: null,
+        redoAvailable: null,
+        note: "InDesign's ExtendScript DOM does not expose undo/redo depth; call undo or redo and read the result.",
+      };
       mock.execute.mockResolvedValue({ result: state });
       const handler = new UndoHandler(mock as any);
 
@@ -125,8 +134,9 @@ describe('UndoHandler', () => {
 
       const text = result.content[0] as any;
       const parsed = JSON.parse(text.text);
-      expect(parsed.undoable).toBe(true);
-      expect(parsed.redoable).toBe(false);
+      expect(parsed.undoAvailable).toBeNull();
+      expect(parsed.redoAvailable).toBeNull();
+      expect(parsed.note).toMatch(/does not expose/);
     });
   });
 });

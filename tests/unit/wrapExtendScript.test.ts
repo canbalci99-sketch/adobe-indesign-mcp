@@ -55,4 +55,49 @@ describe('wrapExtendScript', () => {
     const body = script.slice(script.lastIndexOf('function __blocked('));
     expect(() => new Function(body)()).toThrow(/Blocked by the InDesign MCP security policy: eval/);
   });
+
+  describe('undoGroupActive', () => {
+    // The old wrapper set `app.scriptPreferences.undoMode`, a property InDesign
+    // does not have. It threw for *every* script while a group was open, and its
+    // trailing assignment would have replaced the script result anyway. These
+    // tests pin the shape that actually runs: a nested app.doScript with
+    // UndoModes.ENTIRE_SCRIPT as the last statement.
+    it('groups the body with app.doScript and ENTIRE_SCRIPT', () => {
+      const script = wrapExtendScript('app.documents.length;', { undoGroupActive: true });
+      expect(script).toContain('app.doScript(');
+      expect(script).toContain('ScriptLanguage.JAVASCRIPT');
+      expect(script).toContain('UndoModes.ENTIRE_SCRIPT');
+      expect(script).not.toContain('undoMode');
+    });
+
+    it('does not touch scriptPreferences.undoMode', () => {
+      const script = wrapExtendScript('app.documents.length;', { undoGroupActive: true });
+      expect(script).not.toContain('scriptPreferences.undoMode');
+    });
+
+    it('embeds the body as the final statement so its result survives', () => {
+      const script = wrapExtendScript('JSON.stringify({ a: 1 });', { undoGroupActive: true });
+      const trimmed = script.trimEnd();
+      expect(trimmed.endsWith('UndoModes.ENTIRE_SCRIPT);')).toBe(true);
+    });
+
+    it('sanitises the body before embedding it', () => {
+      const script = wrapExtendScript('var x = eval(body);', { undoGroupActive: true });
+      // The sanitiser runs first, so the neutralised token is inside the string
+      // literal (quotes escaped by JSON encoding).
+      expect(script).toContain('__blocked(\\"eval\\", body)');
+      expect(() => new Function(script)).not.toThrow();
+    });
+
+    it('still parses when both debug and grouping are on', () => {
+      const script = wrapExtendScript('require("fs")', { debug: true, undoGroupActive: true });
+      expect(() => new Function(script)).not.toThrow();
+      expect(script).toContain('__extendscript_error');
+    });
+
+    it('leaves the body unwrapped when no group is active', () => {
+      const script = wrapExtendScript('app.documents.length;');
+      expect(script).not.toContain('app.doScript(');
+    });
+  });
 });

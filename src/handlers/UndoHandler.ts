@@ -34,13 +34,14 @@ export class UndoHandler implements IHandler {
       },
       {
         name: 'undo_beginGroup',
-        description: 'Begin an undo group — subsequent tool calls become a single undo step. Call undo_endGroup() to restore normal behavior.',
+        description:
+          'Begin an undo group. While active, each subsequent script runs as a single undo step, so one Undo reverts a whole tool call (e.g. a multi-step recipe). It cannot merge separate calls into one step — each call is still its own undo entry. Call undo_endGroup() to restore the default.',
         inputSchema: {},
         handler: compose(withLogging('undo_beginGroup'), withErrorHandling())(this.beginUndoGroup.bind(this)),
       },
       {
         name: 'undo_endGroup',
-        description: 'End the undo group and restore normal undo behavior',
+        description: 'End the undo group and restore the default undo behavior',
         inputSchema: {},
         handler: compose(withLogging('undo_endGroup'), withErrorHandling())(this.endUndoGroup.bind(this)),
       },
@@ -54,12 +55,17 @@ export class UndoHandler implements IHandler {
   }
 
   private async undo(_args: unknown, _extra: any): Promise<ToolResult> {
+    // `app.activeDocument.undoable` does not exist in InDesign's DOM — reading it
+    // throws "Object does not support the property or method 'undoable'", so this
+    // tool always failed. There is also no way to *ask* whether an undo is
+    // available (app.undoHistory exposes only length/__proto__), so the only
+    // honest check is to attempt it and report what happened.
     const code = `
-      if (app.activeDocument.undoable) {
+      try {
         app.activeDocument.undo();
         "undone";
-      } else {
-        "nothing to undo";
+      } catch (e) {
+        "nothing to undo: " + (e.message || e);
       }
     `;
     const response = await this.executor.execute(code);
@@ -68,18 +74,27 @@ export class UndoHandler implements IHandler {
 
   private async redo(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      app.activeDocument.redo();
-      "redone";
+      try {
+        app.activeDocument.redo();
+        "redone";
+      } catch (e) {
+        "nothing to redo: " + (e.message || e);
+      }
     `;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
 
   private async undoHistory(_args: unknown, _extra: any): Promise<ToolResult> {
+    // InDesign's scripting DOM does not expose undo/redo depth or availability:
+    // `document.undoable`/`redoable` throw, and `app.undoHistory` reflects only
+    // `length`/`__proto__`. Report that plainly instead of naming properties that
+    // do not exist, so a host does not branch on a field that is always undefined.
     const code = `
       JSON.stringify({
-        undoable: app.activeDocument.undoable,
-        redoable: app.activeDocument.redoable
+        undoAvailable: null,
+        redoAvailable: null,
+        note: "InDesign's ExtendScript DOM does not expose undo/redo depth; call undo or redo and read the result."
       });
     `;
     const response = await this.executor.execute(code);

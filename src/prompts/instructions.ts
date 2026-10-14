@@ -61,8 +61,9 @@ VERIFY WHAT YOU CHANGED
   another open document.
 
 MULTI-STEP EDITS
-- Wrap a sequence of mutations in undo_beginGroup / undo_endGroup so one Undo
-  reverts the whole outcome.
+- Wrap a multi-step call in undo_beginGroup / undo_endGroup so the whole call is
+  one undo step and one Undo reverts it. Separate tool calls cannot be merged
+  into a single step — each remains its own entry.
 - To flow a story across pages, find where it lands with document_getStoryPages
   or document_getPageStories instead of assuming.
 - Two jobs are one call, not a chain: recipe_flowTextStory (place a text file

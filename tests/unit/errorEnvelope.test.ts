@@ -79,10 +79,32 @@ describe('classifyError', () => {
     expect(Object.keys(FIXTURES).sort()).toEqual([...declared].sort());
   });
 
-  it('lets a transport code beat the message text', () => {
-    // "timed out" would match the timeout rule anyway; BRIDGE_ERROR must win,
-    // because the bridge knows more about its own failure than a regex does.
-    expect(classifyError('Script execution timed out', 'BRIDGE_ERROR')).toBe('bridge_error');
+  it('lets a specific transport code beat the message text', () => {
+    // A timeout code is authoritative: the bridge knows for certain that the
+    // script timed out, so a message that mentions a stale object must not
+    // downgrade it to a reference error.
+    expect(classifyError('Object is invalid', 'EXECUTION_TIMEOUT')).toBe('execution_timeout');
+    expect(classifyError('Object is invalid', 'CANCELLED')).toBe('execution_cancelled');
+  });
+
+  it('lets the message refine a generic bridge failure', () => {
+    // BRIDGE_ERROR is the bridge's catch-all — it means only "the script
+    // failed". The macOS bridge reports every InDesign-side failure this way, so
+    // the message is the only thing that can distinguish them. Before this, the
+    // whole rules table was unreachable live: a bad reference came back as
+    // bridge_error instead of invalid_reference.
+    expect(classifyError('Object is invalid', 'BRIDGE_ERROR')).toBe('invalid_reference');
+    expect(classifyError('PDF export preset not found: x. Available: [A]', 'BRIDGE_ERROR')).toBe(
+      'invalid_arguments',
+    );
+    expect(classifyError('Uncaught JavaScript exception: PDF export preset not found: x', 'BRIDGE_ERROR')).toBe(
+      'invalid_arguments',
+    );
+  });
+
+  it('keeps the generic code when the message matches no rule', () => {
+    expect(classifyError('Unknown bridge error', 'BRIDGE_ERROR')).toBe('bridge_error');
+    expect(classifyError('whatever', 'EXTENDSCRIPT_RUNTIME_ERROR')).toBe('extendscript_runtime_error');
   });
 
   it('falls back to unknown rather than guessing', () => {
