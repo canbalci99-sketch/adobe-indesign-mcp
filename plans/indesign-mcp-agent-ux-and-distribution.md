@@ -1,0 +1,383 @@
+# Blueprint — indesign-nutria-mcp: agent UX, error recovery, distribution (v2)
+
+> Objective: raise `indesign-nutria-mcp` from "194 tools that work" to a
+> product an LLM host can drive reliably without being told how, and that a
+> developer can install in one command.
+>
+> Reference standard: [`alisaitteke/photoshop-mcp`](https://github.com/alisaitteke/photoshop-mcp)
+> — 641★, 73 forks, 118–128 tools, MIT, active.
+
+**v2 note.** v1 of this plan was submitted to adversarial review and did not
+survive it intact. Three of its factual claims were wrong, its critical path
+was self-contradictory, and its central step (S1) was described as additive
+when it is not, with a blast radius of 105 test assertions that v1 never
+budgeted. Every correction is marked **[rev]** below, with the evidence. The
+review's over-engineering findings are honoured by moving work to
+*Deferred* rather than deleting it — with the criteria that would justify
+reviving it.
+
+---
+
+## Pre-flight (verified at plan time)
+
+| Check | Value |
+|---|---|
+| Branch | `main`, tracking `origin/main` (`nutriandrea/adobe-indesign-mcp`) |
+| gh auth | `nutriandrea` — admin, can publish |
+| Version | `1.4.2`, tag + release `v1.4.2` live |
+| Tests | 983 passing / 58 files |
+| Tools | 194 across 33 handler files in `src/handlers/` |
+| MCP SDK | `@modelcontextprotocol/sdk@1.29.0` |
+| npm | **Not published** — `npm whoami` → `ENEEDAUTH` |
+| Windows COM path | Implemented, **never executed on Windows** |
+
+---
+
+## What the reference does differently
+
+Not feature count — we have 194 tools to their 128. The difference is
+**orchestration for an LLM consumer**. Verified in their source:
+
+1. **Prompt layer** — `ServerOptions.instructions` carries a workflow contract
+   on `initialize`, plus 24 MCP prompts (`src/prompts/`).
+2. **Structured error envelopes** — `src/errors/envelope.ts` (309 lines):
+   24 typed codes, each with `suggested_next_tool` + `suggested_args`, so a
+   host self-corrects instead of guessing.
+3. **Recipe tier** — 111 atomic + 17 outcome-oriented recipes, each in a single
+   history state so one Undo reverts the outcome.
+4. **Verification tooling** — `get_state`, `get_preview` (a JPEG the model can
+   look at), `get_capabilities`, and optional `document_id` on mutating tools so
+   a tab switch cannot retarget an edit.
+
+The first three are one idea from three angles: *make the product legible to
+the model that drives it.* Distribution (registry packaging, plugin manifests,
+translated READMEs, web UI) follows from that and is *copyable polish*.
+
+---
+
+## Gap analysis  **[rev — three gaps were overstated in v1]**
+
+| # | Gap | Evidence | Severity |
+|---|---|---|---|
+| G1 | No `instructions` on `initialize` | `new McpServer({name, version})` at `IndesignMcpServer.ts:70`; no `instructions` anywhere in `src/` | **P0** |
+| G2 | No structured errors | **Correction:** `okResponse` / `errorResponse` already exist at `responseChunker.ts:124,147` and are referenced only by `responseChunker.test.ts`. The gap is that nothing *uses* them and they carry no recovery hint. | **P0** |
+| G3 | No state/capabilities tool | **[rev]** v1 claimed no preview equivalent. **False:** `preview_document` exists at `PreviewHandler.ts:60` and is registered (`IndesignMcpServer.ts:108`) with tests. The real gap is `get_state` (one round-trip instead of several) and `get_capabilities`. | **P1** |
+| G4 | No recipes — 194 flat atomics | handler registry, all atomic | **P1** |
+| G5 | No MCP prompts | no `registerPrompt` call | P2 → **deferred** |
+| G6 | Not installable | `npm whoami` → `ENEEDAUTH`; README says "not published to npm". **[rev]** `bin` (`package.json:7`) and `engines` (`:64`) already exist; only `files` is missing. | **P0** |
+| G7 | `npm run lint` has never worked | no eslint config; `eslint src/` → "No files matching"; **exits 0**, so it fails silently and CI never calls it | **P1** |
+| G8 | Thin CI | node 18/20/22, `tsc --noEmit`, vitest, build only; actions on mutable `@v4`; no concurrency; no lint | **P1** |
+| G9 | No release automation | tag + release done by hand | P2 |
+| G10 | No architecture/troubleshooting/tool-inventory docs | **[rev]** v1 said "no docs beyond README". **False:** `WINDOWS.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/origin.md`, `docs/comparison.md` exist. The gap is the four engineering docs, not docs. | **P1** |
+| G11 | Windows path unexercised | stated in our own `v1.4.2` notes | **P1** |
+| G12 | No MCP-registry packaging | **[rev]** v1 listed plugin manifests and skills as missing. **False:** `.npmignore`, `plugin/manifest.json`, and a shipped skill at `skills/indesign/indesign-mcp-layout/SKILL.md` all exist. The gap is `server.json`, `mcpb/`, and per-host example configs. | P2 |
+| **G13** | **`saveOptions` defaults disagree and one hangs InDesign** | **[rev — found during this review, missed by the adversarial pass]** `saveDocumentSchema` defaults `'yes'` (`schemas/index.ts:59`) while `closeDocumentSchema` defaults `'ask'` (`:63`). `ask` raises a modal dialog and blocks until the bridge times out. | **P0** |
+
+---
+
+## Steps
+
+### S1 — Error envelope with recovery hints  ← highest risk, do not ship blind
+**Depends on:** none · **Parallel with:** S6, S8 · **Model:** strongest
+
+**Context.** Failures reach the agent as prose. An agent that cannot
+distinguish `no_active_document` from `document_not_found` guesses. This step
+changes the **response contract of all 194 tools**, and the package is
+unpublished — so there is no prior published version to roll back to and no
+consumer-compat signal. Treat it accordingly.
+
+**The seam  [rev].** Every handler already composes
+`compose(withLogging(name), withErrorHandling())(...)` and `withErrorHandling`
+already returns `{content:[{type:'text',...}], isError:true}` on throw
+(`middleware.ts:21-33`). Implement the envelope **there**, once. There is no
+central registry — each handler calls `server.tool()` in its own `register()`
+— so the middleware chain is the only shared point. `withErrorHandling` has no
+tool name; thread it through `withLogging`.
+
+**Shape — specify it, do not hand-wave it  [rev].**
+- Failures: keep `isError: true`, and put `{ok:false, code, message, suggested_next_tool?, suggested_args?}` in the text content. This preserves `isError` semantics that 54 assertions and the MCP spec depend on.
+- Success: extend the existing `okResponse`/`errorResponse` pair rather than inventing a parallel shape.
+- **Compatibility trap:** v1 called this additive. It is not. 105 `JSON.parse(` sites in `tests/unit/handlers/` read fields straight off the top level (`DocumentHandler.test.ts:112-113` reads `parsed.name`, `parsed.pages`). Wrapping success as `{ok:true, data:{…}}` makes those undefined. `ExportHandler.test.ts:232` already returns an array of objects carrying their **own** `ok` key — a naive spread collides. Choose the success strategy deliberately (preferred: spread `ok:true` into object results only, with explicit array/scalar handling) and budget the test updates as part of this step.
+
+**Tasks.**
+- `src/errors/envelope.ts`: `InDesignErrorCode` union + pattern table → `{code, suggested_next_tool, suggested_args?}`.
+- Codes must cover what the bridge actually emits — including `frame_index_out_of_range` (our live smoke test saw the raw string `Object is invalid`), `execution_timeout` (reuse the existing `InDesignError` code), and `script_blocked_by_policy` (the new `__blocked` throw from the sanitizer fix).
+- Wire the envelope into `withErrorHandling`; keep `isError:true`; pass `ImageContent` through **unmodified**.
+- Version bump + CHANGELOG + a migration note stating exactly what changed for a host reading `content[0].text`.
+- Optional: land behind a config flag for one release.
+
+**Verification.**
+- `tests/unit/errorEnvelope.test.ts`: every code reachable from ≥1 test.
+- Contract test: **every `suggested_next_tool` resolves to a registered tool.** A hint naming a missing tool is worse than no hint.
+- Image pass-through test: `preview_document` output survives the wrapper untouched.
+- Update the 105 handler parse sites in the same commit.
+
+**Exit criteria.** `tsc` clean; full suite green; failure responses still `isError:true`; image content byte-identical through the wrapper.
+
+**Rollback.** The seam is one middleware — revert restores the old shape. Behind a flag, the rollback is config.
+
+---
+
+### S2 — Server instructions: the workflow contract
+**Depends on:** S1, S3 **[rev]** · **Parallel with:** S6, S8 · **Model:** strongest
+
+**Context.** Answers `initialize` with a name and a version and nothing else,
+then presents 194 undifferentiated tools. Highest leverage per line in the plan.
+
+**Tasks.**
+- `src/prompts/instructions.ts` exporting `INDESIGN_MCP_INSTRUCTIONS`.
+- **Correct construction  [rev]:** the SDK signature is
+  `constructor(serverInfo: Implementation, options?: ServerOptions)`
+  (`mcp.d.ts:24`); `instructions` lives on `ServerOptions`
+  (`server/index.d.ts:15`). So it is
+  `new McpServer({name, version}, {instructions})`. v1's
+  `new McpServer({name, version, instructions})` does not compile.
+- Contract content, true to *InDesign*:
+  - **Session bootstrap** — verify the bridge once per session, not per turn.
+  - **State before action** — `document_getInfo` before mutating; its output is the source of truth for pages, dimensions, margins.
+  - **Pin the document** — with more than one open, the front tab is not safely the target. **[rev]** Phrase conditionally until S3 ships `document_id`, or the contract dangles references to unshipped capabilities.
+  - **`document_close` needs an explicit `saveOptions`** — see G13. Name the hang.
+  - **Do not reach for raw script execution to work around a failed tool.**
+- **[rev]** "≤ ~120 lines" was the only cost bound. Measure actual tokens; instructions are paid on every session.
+
+**Verification.** Assert `initialize` carries non-empty `instructions`; every tool named in it exists (contract test); token count recorded.
+
+**Exit criteria.** Present on `initialize`; no reference to a non-existent tool; token cost stated.
+
+**Rollback.** One string and one constructor argument.
+
+---
+
+### S3 — Extend preview; add state and capabilities
+**Depends on:** S1 · **Parallel with:** S5 · **Model:** default
+
+**Context (rewritten — v1's premise was false).  [rev]** v1 justified this step
+by claiming `responseChunker` "already carries an image-content shape"
+(§122). That comment describes a **text** envelope. The chunker emits
+`TextContent` only (`responseChunker.ts:62,85,128`) and byte-splits
+JSON-stringified input, so routing an image through it would **corrupt** the
+payload. The prompt also claimed no preview tool exists. **False:**
+`preview_document` exists (`PreviewHandler.ts:60`), is registered
+(`IndesignMcpServer.ts:108`), returns image content, and is tested. Rebase on it.
+
+**Tasks.**
+- **Extend `preview_document`** (don't add a second preview surface): page selection, `document_id`, output size cap.
+- `document_getState` — active document, pages, dimensions, margins, active layer, open-document list, in **one** round-trip. Decide explicitly whether to extend `document_getInfo` or add alongside, and say which in the PR.
+- `document_getCapabilities` — InDesign version, which backend is live (UXP / macOS JXA / Windows COM), feature availability by version. **[rev]** No consumer is identified yet — ship only if S2's contract references it, otherwise defer.
+- Optional `document_id` on mutating tools, validated against the open-document list.
+- **Security task  [rev]:** `PreviewHandler` reads a server-chosen temp file and base64s it (`:96-100`). Assert the path is never user-controlled, cap resolution and payload size, and route through the existing `src/utils/security.ts` guards and `SECURITY.md` policy.
+
+**Verification.** Live smoke vs InDesign 2026 for each tool; a chunking test with an image larger than one frame; a test that a hostile `document_id` is rejected.
+
+**Exit criteria.** Preview honours `document_id` and a size cap; state is one round-trip; capabilities names the live backend correctly.
+
+**Rollback.** Additive handlers; `preview_document` changes revert independently.
+
+---
+
+### S4 — Recipes (reduced to a validated core)  **[rev: was 6 recipes, cut to 2]**
+**Depends on:** S1, S3 · **Parallel with:** none · **Model:** strongest
+
+**Context.** 194 atomics is a hostile surface. But v1 named six recipes with no
+evidence any collapses turns or state, while its own anti-pattern list says a
+recipe that just renames a chain is an alias with extra surface. The adversarial
+review called this over-engineering and it was right.
+
+**Tasks — build two, prove them, then decide.**
+1. `recipe_flowTextStory` — place a text file and flow across pages with overflow handling. Currently multi-call and error-prone; genuinely collapses state.
+2. `recipe_exportPreset` — PDF preset + export in one state.
+
+Each runs inside a single undo group. **[rev]** v1 said the mechanism is
+"unused". **False:** `startUndoGroup`/`endUndoGroup` exist
+(`ScriptExecutor.ts:31,35`) and are already surfaced as the `undo_startGroup` /
+`undo_endGroup` tools (`UndoHandler.ts:37,42`). What is missing is *composing*
+them into a multi-step flow.
+
+**Gate to proceed further:** measure turns and tokens against the atomic
+equivalent. If a recipe does not materially beat the chain, do not build more.
+
+**Verification.** Live smoke per recipe; assert one Undo reverts the whole outcome; record the turn/token delta.
+
+**Exit criteria.** Two recipes with a measured advantage; the measurement decides whether S4 expands.
+
+**Rollback.** Additive handlers.
+
+---
+
+### S5 — Make it installable ⚠️ blocks adoption
+**Depends on:** none · **Parallel with:** S1, S8 · **Model:** default
+
+**Context.** G6. Nothing else matters if nobody can install it.
+
+**Tasks.**
+- Authenticate npm (maintainer action).
+- Decide name/scope; consider matching the reference's scoped convention.
+- Add **`files` only** **[rev]** — `bin` and `engines` already exist.
+- `prepublishOnly`: `build && test && verify:pack` (from S7).
+- Publish, then rewrite the README install section back to `npx`.
+
+**Verification.** `npm pack`, install the tarball into a clean temp dir, run it.
+
+**Exit criteria.** `npx indesign-nutria-mcp` works from a clean machine.
+
+**Rollback.** `npm unpublish` within 72h; then a fixed patch.
+
+---
+
+### S6 — Client configs and registry metadata  **[rev: trimmed]**
+**Depends on:** S5 · **Parallel with:** S7, S8 · **Model:** default
+
+**Tasks.** `examples/` (Claude Desktop, Cursor, Claude Code). `server.json` for
+the MCP registry, `mcpb/` bundle, `glama.json`, `llms.txt`. **[rev]** v1 also
+listed `.claude-plugin`, `.cursor-plugin`, and shipping skills — a skill already
+ships and `plugin/manifest.json` exists, so add only what is genuinely absent.
+
+**Verification.** Each config validated against its schema; a clean-host install using the example verbatim.
+
+**Exit criteria.** One file to copy and be running.
+
+**Rollback.** Additive.
+
+---
+
+### S7 — CI hardening and verification scripts
+**Depends on:** none · **Parallel with:** S5, S8 · **Model:** default
+
+**Context.** G7 + G8. `npm run lint` has never worked and exits 0.
+
+**Tasks.**
+- Add an eslint config, fix what it flags, add it to CI as a required check. A check that cannot fail is worse than no check.
+- `scripts/verify-tool-counts.ts` — **[rev]** v1 made this depend on S8, creating a cycle. It must read the **registry + README directly** (our `tests/contract/toolInventory.test.ts` already parses the README table and pins `EXPECTED_TOOL_COUNT`), so it depends on nothing.
+- `scripts/verify-pack.mjs` — pack, install into a temp dir, import, fail if broken.
+- CI: pin actions to commit SHAs, add `concurrency` with `cancel-in-progress`, keep the 18/20/22 matrix.
+- `pr-title.yml` — conventional title check; the history is already conventional-commit shaped.
+
+**Verification.** Break a doc count → CI fails. Break the packed import → `verify:pack` fails. Each new check demonstrated failing for the right reason.
+
+**Exit criteria.** Green on a clean checkout; every new check has been seen to fail.
+
+**Rollback.** Workflow files revert independently.
+
+---
+
+### S8 — Documentation suite
+**Depends on:** none (write against current state; refresh after S1–S4) · **Parallel with:** S5, S6, S7 · **Model:** default
+
+**Context.** G10 — reworded. `docs/` holds provenance artifacts
+(`origin.md`, `comparison.md`, `launch-thread.md`) plus root-level
+`WINDOWS.md`, `SECURITY.md`, `CONTRIBUTING.md`. What is absent is engineering
+documentation.
+
+**Tasks.**
+- `docs/architecture.md` — the real four-process macOS path (MCP stdio → BridgeServer → proxy → JXA → InDesign) and the Windows COM path. **This diagram existing nowhere is why the `v1.4.2` P0 survived 965 tests.**
+- `docs/troubleshooting.md` — the `document_close` modal hang, port 8120 in use, misspelled `INDESIGN_APP`, missing fonts, `__blocked` policy errors.
+- `docs/available-tools.md` — generated from the registry.
+- `docs/development.md` — live smoke test, and the platform-guard convention for macOS-only tests.
+
+**Verification.** Every command in every doc executed once; counts agree with the registry (S7 enforces).
+
+**Exit criteria.** A new contributor can build, test, and run the smoke test from docs alone.
+
+**Rollback.** Docs only.
+
+---
+
+### S9 — Release automation
+**Depends on:** S5, S7 · **Parallel with:** S8 · **Model:** default
+
+**Tasks.** `release.yml` (tag → build → test → publish → release from
+CHANGELOG), `publish-mcp-registry.yml`, `sync-server-version.ts` so `server.json`
+cannot drift from `package.json`, `validate-release-tag.sh`.
+
+**Verification.** Dry-run on a prerelease tag end to end.
+
+**Exit criteria.** One tag push, no manual steps.
+
+**Rollback.** Delete the workflow.
+
+---
+
+### S10 — Live scenario suite  ⚠️ needs a Windows machine
+**Depends on:** S3, S4 · **Parallel with:** S7, S9 · **Model:** default
+
+**Context.** G11. We have exactly one live test — the macOS smoke test added in
+`v1.4.2`, which exists because 965 mocked tests passed against a build whose
+bridge never listened.
+
+**Tasks.** Promote `scripts/smoke-macos.mjs` into a suite: the existing path,
+one per recipe, a multi-document `document_id`-pinning scenario, and the
+`document_close` modal hang. Then the Windows COM equivalents — **the only thing
+that discharges G11.**
+
+**Verification.** All pass locally vs InDesign 2026; Windows scenarios run on a real host or are explicitly marked unverified.
+
+**Exit criteria.** Every recipe has a live scenario; the Windows gap is closed or stated plainly.
+
+**Rollback.** Scripts only.
+
+---
+
+## Deferred (not justified by the gap analysis)  **[rev]**
+
+| Was | Why deferred | Revive when |
+|---|---|---|
+| **S4 prompts** (v1) | G5 was P2. Adds a step plus a permanent maintenance obligation ("one scenario per prompt") while the stated objective is already served by `instructions`. | After S2 lands, if hosts ask for invocable templates. |
+| **Recipes beyond two** | Unmeasured. The step's own gate now decides. | Two recipes show a real turn/token advantage. |
+| **S12 i18n + social** | `llms.txt` survived into S6; six translated READMEs, hero/OG images and topic curation are not tied to any gap, and unmaintained translations read as abandonment. | A translated maintainer commits to owning them. |
+| **A standalone web UI** | The reference ships one; nothing in our gap analysis requires it. A different product with a different cost. | Users ask for a non-MCP interface. |
+
+---
+
+## Dependency graph  **[rev — v1's critical path was wrong]**
+
+```
+S1 (envelope) ──┬─> S3 (state/preview) ──> S4 (recipes) ──> S10 (live suite)
+                └─> S2 (instructions)
+
+S5 (npm) ──> S6 (configs/registry) ──> S9 (release)
+S7 (CI) ──────────────────────────────> S9
+S8 (docs)
+```
+
+**Critical path:** `S1 → S3 → S4 → S10`. v1 said `S1 → S2 → S5 → S11`, which
+its own graph contradicted — S2 feeds nothing on the path.
+**Unblocked today:** S5 and S8 only. v1 claimed S6/S7/S12 too; S6 and S9 depend
+on S5, so they are not.
+
+## Invariants (after every step)
+
+1. `npx tsc --noEmit` clean, `npx vitest run` green.
+2. `comBridge.enabled` stays `false` in the shipped manifest — macOS/Linux keep working out of the box.
+3. The bridge starts under the **default** config. This is the `v1.4.2` P0; it has tests, and they must not be weakened.
+4. macOS-only execution tests stay behind a platform guard so the Ubuntu matrix stays green.
+5. Tool count in README == registry count.
+6. Failure responses keep `isError: true`; image content passes through unmodified.
+
+## Anti-patterns
+
+- **Calling a response-shape change "additive" without stating the shape.** It cost v1 its central claim.
+- **Bloat in `instructions`** — paid every session.
+- **`suggested_next_tool` naming a tool that does not exist.** Enforce in a contract test.
+- **A verification check that cannot fail** — our own lint script, exiting 0 while matching nothing.
+- **Recipes that merely rename a chain.**
+- **Unmaintained translations.**
+- **Treating the Windows gap as closed by writing more macOS tests.**
+
+## Mutation protocol
+
+Any change to a step records what changed, why, what it blocks, and the date.
+
+- **2026-10-14** — v1 → v2 after adversarial review. Corrected three false gap
+  claims (G3 preview, G10 docs, G12 packaging), fixed the critical path and the
+  parallelisable set, removed the false "chunker carries image shape" premise
+  behind S3, rebased S3 on the existing `preview_document`, fixed the
+  `McpServer` construction in S2, reduced S4 from six recipes to two with a
+  measurement gate, and moved prompts / i18n / web UI to *Deferred*. Added
+  G13 (`saveOptions` default disagreement), found during the review.
+
+## Open questions for the maintainer
+
+1. **G13 — `saveOptions` defaults disagree.** `document_save` defaults `yes`, `document_close` defaults `ask`; the latter hangs InDesign on a modal dialog. Align on `no`, or keep the asymmetry deliberately? S1/S2 document it either way.
+2. **npm publishing.** S5 needs your credentials. S6 and S9 are gated behind it.
+3. **Windows machine.** S10's second half needs one. Without it, G11 stays open.
+4. **S1 scope.** Do you accept the response-shape change for all 194 tools, or should it land behind a config flag for one release?
