@@ -367,6 +367,46 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S4 built, measurement still open.** The plan asked for two
+  recipes with a *measured* advantage and said the measurement decides whether S4
+  expands. The two are built and green on `main` (`75029a2`, CI 18/20/22 +
+  package); the measurement is **not** done, because it needs InDesign and
+  InDesign was closed. That distinction matters here: the exit criterion is a
+  number, not a merge. **`recipe_flowTextStory`** places a text file and then
+  flows it: create a frame on the start page's text area (page bounds inset by
+  that page's margins), `frame.place(File(...))`, then while `frame.overflows`
+  link `frame.nextTextFrame` to a frame on the next page — adding a page when
+  there is no next — and report `framesCreated`, `pagesUsed`, `pagesAdded`,
+  `overflows` and `storyLength`. It is not a rename of a chain because the right
+  next step depends on a state only InDesign reports mid-operation; a caller
+  otherwise loops place → read `overflows` → add page → link, one round-trip per
+  turn, with no way to know the page count up front. **`recipe_exportPreset`**
+  validates `app.pdfExportPresets.itemByName(name).isValid` and exports with it.
+  The plan's claim that this has no atomic equivalent holds for a concrete
+  reason: `export_document` passes its `options` through as JSON, which the PDF
+  engine will not accept as a preset, so the two are genuinely disjoint. A bad
+  name is not a dead end — the error names every valid preset, since no listing
+  tool exists — and `src/errors/envelope.ts` classifies it `invalid_arguments`
+  (resend, do not retry). Each recipe runs as **one** `execute`, so one
+  `UndoModes.ENTIRE_SCRIPT` group covers the whole outcome. That is done by
+  *composing* `startUndoGroup`/`endUndoGroup` — the same mechanism behind
+  `undo_beginGroup`/`undo_endGroup` — with a capture/restore of
+  `executor.undoGroupActive`: if the caller already opened a group, the recipe
+  leaves it open rather than committing it mid-chain. Tool count 195 → 197,
+  handlers 33 → 34, propagated to the README (prose, badge, table, diagram,
+  structure), `package.json`, `smoke-macos.mjs`, `docs/architecture.md` and
+  `docs/development.md`; `docs/available-tools.md` regenerated; the initialize
+  contract now points at both recipes. 10 new handler tests pin the emitted
+  script and the undo-group behaviour (including "does not close a caller's
+  group"); on the new files only. The live gate is now one command —
+  `npm run smoke:recipes` (port 8133, skips cleanly when InDesign is closed):
+  flow a long file, assert the page count grew by what the tool reported, call
+  `undo` **once** and assert the document is back as it was, then take both
+  preset paths. **Still unverified — needs that live gate:**
+  `TextFrame.place` + `nextTextFrame` semantics, the margins math, real preset
+  names, that one Undo really reverts the whole flow, and the turn/token delta
+  versus the atomic chain. Until that is recorded, S4 has not met its exit
+  criteria and must not expand.
 - **2026-10-14** — **S8 landed** (documentation suite), the other step unblocked
   on day one besides S5. Four docs, all written against the code rather than the
   README: `architecture.md` (the four-process macOS path with the real hop labels

@@ -483,6 +483,16 @@ not run on CI; it exits 0 with a SKIP notice if InDesign is not open.
 Run it by hand before releasing a change to the bridge, the protocol, the proxy
 or the driver.
 
+```bash
+npm run smoke:recipes   # the live gate for the two recipes
+```
+
+`smoke:recipes` does what the unit tests cannot: it flows a long text file with
+`recipe_flowTextStory`, checks the document grew by exactly what the tool
+reported, calls `undo` **once** to confirm the whole flow is a single undo step,
+then exercises both preset paths of `recipe_exportPreset`. Same rules as above —
+needs a desktop app, exits 0 with a SKIP notice when InDesign is closed.
+
 ---
 
 ## 🗺️ Roadmap

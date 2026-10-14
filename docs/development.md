@@ -39,6 +39,7 @@ The server is not published to npm; run it from the clone.
 | `npm run verify:pack` | build → `npm pack` → install the tarball → boot it and assert 197 tools |
 | `npm run verify` | `lint` + `verify:tool-counts` + `verify:docs` + `test` (the CI gate) |
 | `npm run smoke:macos` | the live four-process smoke test (needs a running InDesign) |
+| `npm run smoke:recipes` | the live gate for the two recipes (needs a running InDesign) |
 
 ## Test layout
 
@@ -132,10 +133,26 @@ bridge, the protocol, the proxy, or the driver.**
 
 Set `INDESIGN_APP` to your installed version if it is not `Adobe InDesign 2026`.
 
-> The `tests/e2e/` directory is a placeholder for a broader live scenario suite
-> (one per recipe, a multi-document scenario, the `document_close` modal path)
-> and is not wired into `npm test` yet. Today the working live test is
-> `smoke:macos`.
+### The recipe live gate
+
+```bash
+npm run smoke:recipes
+```
+
+The unit tests for the two recipes pin the *shape* of the ExtendScript they emit,
+not that InDesign agrees with it. `smoke:recipes` closes that gap. It creates a
+document, flows a 300-paragraph text file through `recipe_flowTextStory` (which
+must add pages to fit it), asserts the page count grew by exactly what the tool
+reported, then calls `undo` **once** and asserts the document is back to one page
+— the plan's "one Undo reverts the whole outcome". It then covers both preset
+paths: a bad name must fail as `invalid_arguments` and list the valid presets,
+and a good one must write the PDF. It uses bridge port `8133`, exits **0 with a
+SKIP notice** when InDesign is closed, and is not part of CI either.
+
+> The `tests/e2e/` directory is still a placeholder for a broader live scenario
+> suite (a multi-document scenario, the `document_close` modal path) and is not
+> wired into `npm test`. Today the working live tests are `smoke:macos` (the
+> bridge seams) and `smoke:recipes` (the recipes).
 
 ## Verification gates
 

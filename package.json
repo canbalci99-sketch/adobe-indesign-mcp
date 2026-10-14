@@ -46,6 +46,7 @@
     "verify:pack": "npm run build && node scripts/verify-pack.mjs",
     "verify": "npm run lint && npm run verify:tool-counts && npm run verify:docs && npm test",
     "smoke:macos": "node scripts/smoke-macos.mjs",
+    "smoke:recipes": "node scripts/smoke-recipes.mjs",
     "prepublishOnly": "npm run verify && npm run verify:pack"
   },
   "dependencies": {

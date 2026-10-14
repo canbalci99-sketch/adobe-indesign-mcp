@@ -79,7 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs inside a single `UndoModes.ENTIRE_SCRIPT` group by composing the existing
   `startUndoGroup`/`endUndoGroup`, so one Undo reverts the whole outcome. The tool
   count is now 197 across 34 handlers, and the inventory guard caught every
-  advertised "195" that had to move
+  advertised "195" that had to move. **`npm run smoke:recipes`** is the live gate
+  for both: it flows a long file, asserts the page count grew as reported, undoes
+  **once** and asserts the document is restored, then checks the preset error path
+  and a real export. It has **not** been run yet — InDesign was closed — so the
+  plan's measured advantage is still open and S4 must not expand until it is
+  recorded
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and
