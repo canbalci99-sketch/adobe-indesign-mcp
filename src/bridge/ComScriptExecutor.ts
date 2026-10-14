@@ -138,7 +138,7 @@ export class ComScriptExecutor extends ScriptExecutor {
 
   private removePending(id: string): void {
     const index = this.queue.findIndex((p) => p.id === id);
-    if (index !== -1) this.queue.splice(index, 1)[0];
+    if (index !== -1) this.queue.splice(index, 1);
   }
 
   private failAllPending(err: InDesignError): void {

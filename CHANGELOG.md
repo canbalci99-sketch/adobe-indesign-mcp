@@ -38,8 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the cap is re-exported once at the resolution that fits, and a render that
   cannot fit even at 72 ppi fails with code `output_too_large` and
   `suggested_args` for the retry
+- **A working lint.** `npm run lint` ran `eslint src/` with no config and no
+  `--ext`, so it matched no files and exited 0: CI passed a check that could not
+  fail. There is now an `.eslintrc.cjs`, the lint covers `src` and `scripts/*.ts`,
+  and it is a required CI step
+- **`npm run verify:tool-counts`** pins every number the project *advertises* — the
+  README prose, the README badge, the package description and the handler table —
+  against the real registry. The vitest guard only compared the registry to a
+  constant and to the handler table, which is how the package description once
+  read 191 while the README said 194
+- **`npm run verify:pack`** packs the package, installs the tarball into a temp
+  dir, boots the packed server over stdio and completes an initialize +
+  `tools/list` handshake. Importing the entry point is not an option (it calls
+  `main()` at module scope), and spawning it is a stronger check anyway: it proves
+  the artifact a user installs actually runs
+- **A PR-title check** (`.github/workflows/pr-title.yml`). Zero third-party
+  actions: the title is already in the event payload, so there is nothing to
+  fetch, pin or trust
 
 ### Changed
+- **CI is reproducible and self-cancelling.** `actions/checkout` and
+  `actions/setup-node` are pinned to commit SHAs (a repointed `@v5` changes what
+  runs without any commit here changing), a `concurrency` group cancels
+  superseded runs, permissions are read-only, and packaging is a separate job that
+  depends on the matrix
 - **Error responses are JSON text, not prose.** The failing message is preserved
   verbatim inside the envelope, so callers that read the text still see it, and
   `isError: true` is unchanged. This applies to exceptions caught by
@@ -54,6 +76,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`preview_document` failures are structured envelopes, not prose.** It used to
   catch its own errors and return a `preview failed: …` text block, which
   bypassed the error contract every other tool follows
+
+### Fixed
+- **`export_batchFolder` matched any character before `.indd`.** The strip regex
+  was written `\.indd` inside a template literal, where `\.` is an unnecessary
+  escape that silently loses the backslash: the ExtendScript received `/.indd$/i`,
+  whose dot matches any character, so a file named `myindd` (no dot) had `yindd`
+  stripped and was exported as `m`. A regression test now pins the emitted text.
+  Found by the new lint config, not by a test
+- **The packaged macOS bridge was broken on install.** `.npmignore` excluded
+  `bridge-proxy.mjs` while shipping `start-bridge.sh`, which execs it, so anyone
+  who installed from npm and ran `start-bridge.sh` got a missing-module error.
+  `bridge-proxy.mjs` now ships, and `verify:pack` asserts that the files the
+  package's own entry points invoke are inside the tarball — a handshake alone
+  would not have noticed, because the server only reaches for the proxy when it
+  runs a script
+- **`ComScriptExecutor.removePending` had a dead expression.** `splice(index, 1)[0]`
+  removed the entry and discarded the result; the `[0]` was vestigial
+- **Two hidden characters in `stringUtils.ts`.** A zero-width space was used to keep
+  a JSDoc comment from closing early with a literal `*/`. The comment was reworded
+  so the sequence is never needed, removing the invisible character
+- **A second template-literal escape bug in the ExtendScript JSON polyfill's
+  comment**, where `\s` and `\(` were being dropped. Cosmetic (it is a comment),
+  but fixed for consistency with the `export_batchFolder` one above
 
 ## [1.4.2] - 2026-09-27
 

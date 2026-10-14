@@ -2,12 +2,12 @@
 .omo/
 .opencode/
 .sisyphus/
-bridge-proxy.mjs
 build-portfolio.mjs
 mcp-tool.mjs
 test-config.json
 tsconfig.json
 vitest.config.ts
+.eslintrc.cjs
 src/
 tests/
 coverage/

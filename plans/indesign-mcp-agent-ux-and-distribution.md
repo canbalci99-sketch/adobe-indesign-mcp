@@ -367,6 +367,37 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S7 landed** (CI hardening), and it paid for itself before it
+  was finished. `npm run lint` had *never* worked: `eslint src/` with no config and
+  no `--ext` matched no files and exited 0, so CI passed a check that could not
+  fail. With a real config the eight findings were not style noise — one was a
+  live bug: `export_batchFolder` wrote `\.indd` inside a template literal, where
+  the escape is unnecessary and silently dropped, so the emitted ExtendScript
+  carried `/.indd$/i` and stripped the wrong characters from names without a dot.
+  Two more were a dead `splice(...)[0]` and a zero-width space hiding in a JSDoc
+  comment. The lint is now a required CI step and covers `src` + `scripts/*.ts`.
+  **`verify:tool-counts`** reads the numbers the project *advertises* — README
+  prose, badge, package description, handler table — which the vitest guard does
+  not, and that gap is exactly how the description once read 191. It immediately
+  turned up a real one: the README's per-category headings sum to 164, not 195,
+  because the "Other" bucket (layers, effects, TOC, sections, undo, changes …) is
+  deliberately uncounted — noted for S8, not a CI failure, since the headings are
+  a curated grouping rather than a partition. **`verify:pack`** packs, installs the
+  tarball in a temp dir and boots it over stdio (importing is impossible: `main()`
+  runs at module scope), and it caught a genuine packaging break: `.npmignore`
+  excluded `bridge-proxy.mjs` while shipping the `start-bridge.sh` that execs it,
+  so the plugin-free macOS path was broken for every npm install; the tarball also
+  shipped `.eslintrc.cjs`, now ignored. A handshake alone would not have caught it —
+  the server only reaches for the proxy when it runs a script — so `verify:pack`
+  also asserts the required runtime files are in the tarball. CI now pins
+  `checkout`/`setup-node` to commit SHAs (v5, which also drops the deprecated Node
+  20 action runtime from G8), cancels superseded runs via `concurrency`, runs
+  read-only, and checks packaging in a separate job. A conventional-PR-title check
+  was added with no third-party action, because the title is already in the event
+  payload. Every new check was demonstrated failing for the right reason: lint on a
+  planted unused variable, `verify:tool-counts` on a badge and description set to
+  191, `verify:pack` on the reinstated `bridge-proxy.mjs` exclusion, and the title
+  pattern on `Update stuff`.
 - **2026-10-14** — **S3 landed** (verification tools), with two scope cuts the
   plan itself licensed. **`document_getCapabilities` deferred**: the plan said to
   ship it only if S2's contract referenced it, and S2 does not — no consumer, so

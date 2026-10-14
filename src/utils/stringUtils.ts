@@ -11,8 +11,8 @@ export function escapeExtendScriptString(str: string): string {
  * `__blocked(...)`. The trusted bundle defines `__blocked` to throw, and the
  * substitution keeps the opening parenthesis so the closing one still balances.
  *
- * The previous version substituted a bare `/* blocked *​/` comment for the
- * callee, so `eval(1)` became `/* blocked *​/1)` — a syntax error. Every script
+ * The previous version substituted a bare block comment for the callee, so
+ * `eval(1)` became that comment followed by `1)` — a syntax error. Every script
  * that tripped the filter then failed inside InDesign with "Expected: ;",
  * naming neither the offending construct nor the reason. Neutralisation has to
  * leave the code parseable so the rejection can be reported as what it is.

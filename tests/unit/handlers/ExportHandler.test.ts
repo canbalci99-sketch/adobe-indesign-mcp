@@ -266,6 +266,21 @@ describe('export_batchFolder', () => {
     expect(timeout).toBe(300000);
   });
 
+  it('strips the .indd extension with an escaped dot in the emitted script', async () => {
+    const executor = createMockExecutor();
+    const handler = new ExportHandler(executor as any);
+    const tool = handler.tools.find((t) => t.name === 'export_batchFolder')!;
+
+    await tool.handler({ folderPath: '/docs/in', outputDir: '/docs/out' });
+
+    const [code] = executor.execute.mock.calls[0];
+    // The script is a template literal, and a single `\.` there is an
+    // unnecessary escape: it silently loses the backslash and the exported
+    // regex becomes /.indd$/i, whose dot matches any character. Pin the doubled
+    // backslash in the source so the emitted script keeps a literal dot.
+    expect(code).toContain('replace(/\\.indd$/i');
+  });
+
   it('escapes paths to prevent ExtendScript injection', async () => {
     const executor = createMockExecutor();
     const handler = new ExportHandler(executor as any);

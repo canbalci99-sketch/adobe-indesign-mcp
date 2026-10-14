@@ -38,9 +38,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc",
-    "lint": "eslint src/",
+    "lint": "eslint src scripts --ext .ts",
+    "lint:fix": "eslint src scripts --ext .ts --fix",
+    "verify:tool-counts": "tsx scripts/verify-tool-counts.ts",
+    "verify:pack": "npm run build && node scripts/verify-pack.mjs",
+    "verify": "npm run lint && npm run verify:tool-counts && npm test",
     "smoke:macos": "node scripts/smoke-macos.mjs",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run verify && npm run verify:pack"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -54,6 +58,8 @@
     "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "@vitest/coverage-v8": "^1.6.1",
     "eslint": "^8.56.0",
     "prettier": "^3.2.0",

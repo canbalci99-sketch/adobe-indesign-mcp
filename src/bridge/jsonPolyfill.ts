@@ -38,7 +38,7 @@ if (typeof JSON.parse !== 'function') {
   // NOTE: no eval() here — sanitizeCode() replaces eval( with a comment,
   // which orphaned the parentheses and caused "Expected: ;" parse errors.
   // [].constructor.constructor is Function without matching the
-  // sanitizer's /\bFunction\s*\(/ pattern.
+  // sanitizer's /\\bFunction\\s*\\(/ pattern.
   JSON.parse = function (text) {
     var fn = [].constructor.constructor;
     return fn('return (' + text + ')')();

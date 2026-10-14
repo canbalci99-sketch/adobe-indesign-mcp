@@ -170,7 +170,7 @@ const exportFormat = formatMap[params.format];
         var doc;
         try {
           doc = app.open(__files[i], false);
-          var baseName = __files[i].name.replace(/\.indd$/i, "");
+          var baseName = __files[i].name.replace(/\\.indd$/i, "");
           var outFile = new File(__outDir + "/" + baseName + ".pdf");
           doc.exportFile(ExportFormat.PDF_TYPE, outFile, ${params.overwrite});
           doc.close(SaveOptions.NO_CHANGES);

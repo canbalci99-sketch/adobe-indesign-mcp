@@ -15,6 +15,7 @@ export function sanitizeInput(input: string): string {
     throw new Error('Input must be a string');
   }
   return input
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
     .replace(/[\x00-\x1F\x7F]/g, '')       // Remove control characters
     .slice(0, 10000);                         // Limit length to prevent DoS
 }
@@ -134,6 +135,7 @@ export function validateDocumentName(
     return { valid: false, error: 'Document name too long (max 255 characters)' };
   }
   // Block invalid filename characters
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
   const invalidChars = /[<>:"|?*\x00-\x1F]/;
   if (invalidChars.test(trimmed)) {
     return { valid: false, error: 'Document name contains invalid characters' };

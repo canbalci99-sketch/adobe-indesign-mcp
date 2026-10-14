@@ -6,27 +6,64 @@ on:
   pull_request:
     branches: [main]
 
+# A second push to the same ref should cancel the run still in flight rather
+# than race it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     strategy:
+      fail-fast: false
       matrix:
         node-version: [18, 20, 22]
-
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to a commit, not a moving tag: a repointed @v5 would change what
+      # runs in this workflow without any commit here changing.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
 
       - run: npm ci
 
+      # Until now this was `eslint src/` with no config and no --ext: it matched
+      # no files and exited 0, so CI passed a check that could not fail.
+      - run: npm run lint
+
       - run: npx tsc --noEmit
 
-      - run: npx vitest run
+      - run: npm test
+
+      # Pins the counts the README, the badge and the package description
+      # advertise against the real registry.
+      - run: npm run verify:tool-counts
 
       - run: npm run build
+
+  package:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Packs, installs the tarball into a temp dir and boots the packed server
+      # over stdio. Also asserts the files its own entry points invoke are in the
+      # tarball — the check that catches an .npmignore that ships start-bridge.sh
+      # without the bridge-proxy.mjs it execs.
+      - run: npm run verify:pack

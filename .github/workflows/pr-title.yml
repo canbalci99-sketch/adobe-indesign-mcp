@@ -1,0 +1,28 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      # No third-party action: the title is already in the event payload, so
+      # there is nothing to fetch, pin or trust. A CI check should not be the
+      # weakest link in the supply chain.
+      - name: Check the title is a conventional commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?!?: .+'
+          if printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::PR title must be a conventional commit, e.g. 'fix(bridge): reconnect after sleep' or 'feat: add document_getState'"
+            echo "got: $TITLE"
+            exit 1
+          fi
