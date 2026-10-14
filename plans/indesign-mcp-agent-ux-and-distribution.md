@@ -747,10 +747,23 @@ Any change to a step records what changed, why, what it blocks, and the date.
 
 ## Open questions for the maintainer
 
-1. **G13 — `saveOptions` defaults disagree.** `document_save` defaults `yes`, `document_close` defaults `ask`; the latter hangs InDesign on a modal dialog. Align on `no`, or keep the asymmetry deliberately? S1/S2 document it either way.
+1. **G13 — `saveOptions` defaults disagree.** `document_save` defaults `yes`,
+   `document_close` defaulted `ask`; the latter hangs InDesign on a modal dialog.
+   **Resolved 2026-10-14: aligned on `no` for `document_close`.** `'ask'` and
+   `'yes'` are both unsafe there — `'ask'` opens a modal save dialog and `'yes'`
+   opens Save As for a document that has never been saved, and both block the
+   script until the bridge times out with InDesign left wedged, while closing
+   without saving never prompts. A caller that wants the work kept has to call
+   `document_save` first. The remaining asymmetry with `document_save`'s `'yes'`
+   is deliberate: saving is that tool's whole purpose, prompting is not.
+   `src/schemas/index.ts` carries the reasoning inline; the README and the
+   published docs were corrected off the old "defaults to `ask`" text; and
+   `npm run smoke:macos` now closes a *dirty* document with `saveOptions`
+   deliberately omitted, so a regression to a prompting value fails live instead
+   of hanging the next person's InDesign.
 2. **npm publishing.** S5 needs your credentials. S6 and S9 are gated behind it.
 3. **Windows machine.** S10's second half needs one. Without it, G11 stays open.
-4. **S1 scope.** Do you accept the response-shape change for all 194 tools, or should it land behind a config flag for one release?
+4. **S1 scope.** Do you accept the response-shape change for all 197 tools, or should it land behind a config flag for one release?
    **Resolved 2026-10-14: behind a config flag for one release.** The failure
    envelope (S1a) is always on and additive. The success shape (S1b) ships behind
    `responseEnvelope.success` / `RESPONSE_ENVELOPE_SUCCESS`, default **off**; when
