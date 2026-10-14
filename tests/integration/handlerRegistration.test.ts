@@ -35,6 +35,7 @@ import { TransformHandler } from '../../src/handlers/TransformHandler.js';
 import { UndoHandler } from '../../src/handlers/UndoHandler.js';
 import { XrefHandler } from '../../src/handlers/XrefHandler.js';
 import { PreviewHandler } from '../../src/handlers/PreviewHandler.js';
+import { RecipeHandler } from '../../src/handlers/RecipeHandler.js';
 import { ChangesHandler } from '../../src/handlers/ChangesHandler.js';
 import { ChangeTracker } from '../../src/core/ChangeTracker.js';
 
@@ -77,6 +78,7 @@ describe('Handler Registration', () => {
     { name: 'UndoHandler', instance: new UndoHandler(new ScriptExecutor(5000)) },
     { name: 'XrefHandler', instance: new XrefHandler(new ScriptExecutor(5000)) },
     { name: 'PreviewHandler', instance: new PreviewHandler(new ScriptExecutor(5000)) },
+    { name: 'RecipeHandler', instance: new RecipeHandler(new ScriptExecutor(5000)) },
     { name: 'ChangesHandler', instance: new ChangesHandler(new ChangeTracker()) },
   ];
 
@@ -129,12 +131,12 @@ describe('Handler Registration', () => {
     expect(duplicates).toEqual([]);
   });
 
-  it('should produce exactly 195 tools across all 33 handlers', () => {
+  it('should produce exactly 197 tools across all 34 handlers', () => {
     let total = 0;
     for (const { instance } of handlerPairs) {
       total += instance.tools.length;
     }
-    expect(total).toBe(195);
+    expect(total).toBe(197);
   });
 
   it('should have tool names prefixed with handler category', () => {

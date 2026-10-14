@@ -243,7 +243,7 @@ a desktop app), and it skips with exit 0 if InDesign is not open. See
 | File | Responsibility |
 |------|----------------|
 | `src/index.ts` | entry point; loads config, starts the server |
-| `src/server/IndesignMcpServer.ts` | builds `McpServer`, registers 33 handlers, starts the bridge, wires resources |
+| `src/server/IndesignMcpServer.ts` | builds `McpServer`, registers 34 handlers, starts the bridge, wires resources |
 | `src/bridge/BridgeServer.ts` | WebSocket listener, health checks, fast-fail when disconnected |
 | `src/bridge/ScriptExecutor.ts` | pending-request map, timeouts, protocol normalisation, undo-group flag |
 | `src/bridge/ComScriptExecutor.ts` | Windows COM backend (persistent `cscript`) |

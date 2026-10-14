@@ -1,7 +1,7 @@
 {
   "name": "indesign-nutria-mcp",
   "version": "1.4.2",
-  "description": "The most comprehensive MCP server for Adobe InDesign — 195 tools, full DOM control, AI-native automation",
+  "description": "The most comprehensive MCP server for Adobe InDesign — 197 tools, full DOM control, AI-native automation",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

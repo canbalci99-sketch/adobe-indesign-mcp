@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>Say "Create an A4 document with 5 pages, add a red circle on page 3" — and it happens.</b><br>
-  <i>The most comprehensive MCP server for Adobe InDesign. 195 tools. 33 handlers. Full DOM coverage.</i>
+  <i>The most comprehensive MCP server for Adobe InDesign. 197 tools. 34 handlers. Full DOM coverage.</i>
 </p>
 
 <p align="center">
@@ -20,8 +20,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7c3aed?style=flat" alt="license"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tools-195-7c3aed?style=flat" alt="tools"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-1016-22c55e?style=flat" alt="tests"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tools-197-7c3aed?style=flat" alt="tools"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-1030-22c55e?style=flat" alt="tests"></a>
   <a href="https://github.com/nutriandrea/adobe-indesign-mcp/actions/workflows/ci.yml/badge.svg"><img src="https://github.com/nutriandrea/adobe-indesign-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?style=flat&logo=node.js" alt="node"></a>
   <a href="https://www.adobe.com/products/indesign.html"><img src="https://img.shields.io/badge/InDesign-2022%2B-007396?style=flat&logo=adobe" alt="indesign"></a>
@@ -46,14 +46,14 @@ yours to drive like a puppeteer.
 |---|---|---|---|---|---|
 | **Learn in** | 30 seconds | 3 weeks | 2 months | 1 month | 0 (slow) |
 | **AI-native** | ✅ Any MCP agent | ❌ | ❌ | ❌ | ❌ |
-| **Tool count** | **195** | Unlimited (you write them) | 5-20 typical | 5-20 typical | ∞ (manual) |
+| **Tool count** | **197** | Unlimited (you write them) | 5-20 typical | 5-20 typical | ∞ (manual) |
 | **Error messages** | Human-readable | Opaque crashes | Varies | Better | N/A |
 | **Setup time** | 5 minutes | 10 minutes | 2 hours | 30 minutes | Instant |
 | **Undo support** | ✅ Built-in | ❌ | Varies | ❌ | ✅ |
 | **Search text** | `text_search("pattern")` | Write 50 lines | Maybe | Maybe | Ctrl+F |
 | **Debug mode** | ✅ Stack traces | ❌ | Varies | Limited | N/A |
 | **Remote control** | ✅ Anywhere STDIO works | ❌ InDesign-only | ❌ | ❌ | N/A |
-| **Maintenance** | Zero (we handle 195 tools) | You write+test everything | Fragile | Fragile | N/A |
+| **Maintenance** | Zero (we handle 197 tools) | You write+test everything | Fragile | Fragile | N/A |
 
 ---
 
@@ -134,8 +134,8 @@ Ten skills ship with the repo, auto-loaded by trigger keywords when you use any 
 ┌─────────────────────┐       STDIO        ┌──────────────────────┐     WebSocket     ┌──────────────────┐
 │  Any AI Agent       │ ◄────────────────► │  indesign-nutria-mcp │ ◄───────────────► │  Adobe InDesign   │
 │  (Claude, OpenCode, │                    │  (Node.js MCP Server) │     port 8120     │  + UXP Plugin     │
-│   Cursor, etc.)     │                    │  33 handlers         │                    │  + ExtendScript    │
-└─────────────────────┘                    │  195 tools           │                    └──────────────────┘
+│   Cursor, etc.)     │                    │  34 handlers         │                    │  + ExtendScript    │
+└─────────────────────┘                    │  197 tools           │                    └──────────────────┘
                                            │  10 AI skills        │
                                            └──────────────────────┘
 ```
@@ -183,6 +183,7 @@ UXP panel. See [WINDOWS.md](WINDOWS.md) for the Windows bridge and
 | **Object** | 6 | shapes, groups, image links |
 | **Page** | 7 | add, delete, duplicate, move, getInfo, listAll, applyMaster |
 | **Preview** | 1 | document — render a page as an image the agent can see |
+| **Recipe** | 2 | flow a placed text story across pages, export with a named PDF preset — each in one undo group |
 | **Resources** | 6 | list/update/embed/unembed links, getLinkInfo |
 | **Section** | 4 | create, list, setNumbering, delete |
 | **Shape** | 6 | rectangle/ellipse/line/polygon create, delete, modify |
@@ -196,7 +197,7 @@ UXP panel. See [WINDOWS.md](WINDOWS.md) for the Windows bridge and
 | **Undo** | **5** | undo, redo, history, **beginGroup, endGroup** |
 | **Xml** | 6 | tags CRUD, tag/untag items, import/export |
 | **Xref** | 3 | create, list, updateFormat |
-| | **195** | 33 handlers, no duplicates |
+| | **197** | 34 handlers, no duplicates |
 
 `tests/contract/toolInventory.test.ts` pins this number, so the table cannot
 drift from the code without failing CI.
@@ -217,7 +218,7 @@ adding a text frame, reading it back, and closing.
 |---|---|
 | `mcp://session/status` | Active document session state |
 | `mcp://bridge/status` | WebSocket bridge health + queue depth |
-| `mcp://tools/inventory` | Full 195-tool catalog for agent self-discovery |
+| `mcp://tools/inventory` | Full 197-tool catalog for agent self-discovery |
 | `mcp://document/active` | Currently active document info |
 
 ---
@@ -422,7 +423,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ├── src/
 │   ├── server/          # MCP server (STDIO transport)
 │   ├── bridge/          # WebSocket bridge, ScriptExecutor, protocol, COM executor
-│   ├── handlers/        # 33 handler modules (195 tools)
+│   ├── handlers/        # 34 handler modules (197 tools)
 │   ├── schemas/         # Zod parameter schemas
 │   ├── core/            # Session tracking
 │   ├── types/           # TypeScript definitions
@@ -432,7 +433,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ├── jxa-driver.js        # Runs one ExtendScript inside InDesign
 ├── start-bridge.sh      # Launches InDesign + the proxy
 ├── skills/              # Agent-facing skills shipped with the server
-├── tests/               # 1016 tests (vitest)
+├── tests/               # 1030 tests (vitest)
 ├── .opencode/skills/    # 10 AI agent skills
 ├── docs/                # Documentation and fork audits
 ├── media/               # Social preview, hero images
@@ -455,7 +456,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ## 🧪 Development
 
 ```bash
-npm test            # Run 1016 tests
+npm test            # Run 1030 tests
 npm run test:watch  # Watch mode
 npm run build       # TypeScript compile
 npm run lint        # ESLint

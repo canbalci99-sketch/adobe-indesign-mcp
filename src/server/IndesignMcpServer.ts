@@ -42,6 +42,7 @@ import { ListHandler } from '../handlers/ListHandler.js';
 import { DataMergeHandler } from '../handlers/DataMergeHandler.js';
 import { PreviewHandler } from '../handlers/PreviewHandler.js';
 import { ChangesHandler } from '../handlers/ChangesHandler.js';
+import { RecipeHandler } from '../handlers/RecipeHandler.js';
 
 export class IndesignMcpServer {
   private mcpServer: McpServer;
@@ -114,6 +115,7 @@ export class IndesignMcpServer {
       new ListHandler(this.executor),
       new DataMergeHandler(this.executor),
       new PreviewHandler(this.executor),
+      new RecipeHandler(this.executor),
       new ChangesHandler(this.changeTracker),
     ];
 

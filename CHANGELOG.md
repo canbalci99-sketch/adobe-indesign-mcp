@@ -30,9 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`document_getState`** returns the front document's geometry, that document's
   index, every open document, the active layer and the selection count in **one
   bridge round-trip**, replacing the `document_getInfo` + `document_listOpen` +
-  layer + selection sequence. The tool count is now 195; the README, the package
-  description and the inventory guard were updated together, and the guard caught
-  a handler-table row that had been missed
+  layer + selection sequence. The tool count moved to 195 at the same time; the
+  README, the package description and the inventory guard were updated together,
+  and the guard caught a handler-table row that had been missed
 - **`preview_document` takes `documentIndex`** to render any open document rather
   than only the front one, and **caps the exported file at 4 MB**: a render over
   the cap is re-exported once at the resolution that fits, and a render that
@@ -68,6 +68,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   registry (the same loader the server uses), and **`npm run verify:docs`** fails
   if the file on disk has drifted. CI runs the check, so the catalog a user reads
   cannot fall behind the code
+- **Two recipes** that are more than a rename of a chain.
+  `recipe_flowTextStory` places a text file and flows it across pages — creating
+  the frames, linking them, adding pages when it runs out, and reporting where
+  the story ended and whether it still overflows — in **one** bridge round-trip,
+  because the right next step depends on a state only InDesign can report.
+  `recipe_exportPreset` applies a named PDF export preset and exports; the atomic
+  `export_document` cannot, because its `options` are JSON and not an object the
+  PDF engine accepts. A wrong preset name fails with the list of valid ones. Each
+  runs inside a single `UndoModes.ENTIRE_SCRIPT` group by composing the existing
+  `startUndoGroup`/`endUndoGroup`, so one Undo reverts the whole outcome. The tool
+  count is now 197 across 34 handlers, and the inventory guard caught every
+  advertised "195" that had to move
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and

@@ -4,7 +4,7 @@
 > Regenerate with `npm run docs:tools`. CI (`npm run verify:docs`) fails
 > the build if this file no longer matches the registry.
 
-**195 tools across 33 handlers.** This is the live registry — the same list the server serves over `mcp://tools/inventory`.
+**197 tools across 34 handlers.** This is the live registry — the same list the server serves over `mcp://tools/inventory`.
 
 ## Contents
 
@@ -40,6 +40,7 @@
 - [List](#list) — 6
 - [DataMerge](#datamerge) — 5
 - [Preview](#preview) — 1
+- [Recipe](#recipe) — 2
 - [Changes](#changes) — 1
 
 ## Document
@@ -459,6 +460,15 @@ _1 tools_
 | Tool | Description |
 |------|-------------|
 | `preview_document` | Render a page of the active document as an image (PNG or JPEG) so you can visually inspect layout, colors and typography |
+
+## Recipe
+
+_2 tools_
+
+| Tool | Description |
+|------|-------------|
+| `recipe_flowTextStory` | Place a text file and flow it across as many pages as it needs in one call — creates the frames, links them, adds pages when it runs out, and reports where the story ended and whether it still overflows |
+| `recipe_exportPreset` | Export the active document to PDF using a named PDF export preset in one call — validates the preset first and, if it is wrong, fails with the list of valid preset names |
 
 ## Changes
 

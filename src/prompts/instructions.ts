@@ -64,4 +64,7 @@ MULTI-STEP EDITS
 - Wrap a sequence of mutations in undo_beginGroup / undo_endGroup so one Undo
   reverts the whole outcome.
 - To flow a story across pages, find where it lands with document_getStoryPages
-  or document_getPageStories instead of assuming.`;
+  or document_getPageStories instead of assuming.
+- Two jobs are one call, not a chain: recipe_flowTextStory (place a text file
+  and flow it to the end, adding pages) and recipe_exportPreset (export with a
+  named PDF preset). Each is one round-trip and one undo group.`;

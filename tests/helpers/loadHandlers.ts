@@ -55,6 +55,7 @@ export async function loadHandlers(): Promise<HandlerTools[]> {
   const { DataMergeHandler } = await import('../../src/handlers/DataMergeHandler.js');
   const { PreviewHandler } = await import('../../src/handlers/PreviewHandler.js');
   const { ChangesHandler } = await import('../../src/handlers/ChangesHandler.js');
+  const { RecipeHandler } = await import('../../src/handlers/RecipeHandler.js');
 
   const executor = buildExecutorStub() as never;
   const changeTracker = { on: () => {} } as never;
@@ -92,6 +93,7 @@ export async function loadHandlers(): Promise<HandlerTools[]> {
     ['ListHandler', ListHandler as never],
     ['DataMergeHandler', DataMergeHandler as never],
     ['PreviewHandler', PreviewHandler as never],
+    ['RecipeHandler', RecipeHandler as never],
   ];
 
   const results: HandlerTools[] = HandlerCtors.map(([name, Ctor]) => {

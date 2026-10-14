@@ -36,7 +36,7 @@ The server is not published to npm; run it from the clone.
 | `npm run verify:tool-counts` | fails if any advertised tool count drifts from the registry |
 | `npm run docs:tools` | regenerates `docs/available-tools.md` from the registry |
 | `npm run verify:docs` | fails if `docs/available-tools.md` is stale |
-| `npm run verify:pack` | build → `npm pack` → install the tarball → boot it and assert 195 tools |
+| `npm run verify:pack` | build → `npm pack` → install the tarball → boot it and assert 197 tools |
 | `npm run verify` | `lint` + `verify:tool-counts` + `verify:docs` + `test` (the CI gate) |
 | `npm run smoke:macos` | the live four-process smoke test (needs a running InDesign) |
 
@@ -115,7 +115,7 @@ What it does:
 1. boots the server on a **non-default port** (`SMOKE_PORT`, default `8131`) so
    it never fights a bridge you already have running;
 2. checks `initialize` advertises the workflow contract and `tools/list`
-   returns 195 tools;
+   returns 197 tools;
 3. starts `bridge-proxy.mjs` and waits for `mcp://bridge/status` to report
    connected;
 4. creates a document, adds a text frame, reads it back, calls
@@ -150,7 +150,7 @@ Three scripts guard the things that go stale silently:
 - **`verify:docs`** regenerates `docs/available-tools.md` and fails if the file
   on disk differs. Change a tool, run `npm run docs:tools`.
 - **`verify:pack`** packs the tarball, installs it into a temp dir, boots the
-  packed entry point over stdio, and asserts it advertises 195 tools — the check
+  packed entry point over stdio, and asserts it advertises 197 tools — the check
   that catches a `.npmignore` shipping `start-bridge.sh` without the
   `bridge-proxy.mjs` it execs.
 

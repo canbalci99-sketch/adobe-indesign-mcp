@@ -122,6 +122,13 @@ const RULES: readonly Rule[] = [
     suggested_next_tool: 'image_getLinks',
   },
 
+  // `recipe_exportPreset` validates its preset live and names the valid ones
+  // in the message — the caller's fix is to resend, not to retry a chain.
+  {
+    pattern: /pdf export preset .*not found|not a valid pdf export preset/i,
+    code: 'invalid_arguments',
+  },
+
   {
     pattern:
       /invalid file path|file path must|expected .* received|invalid argument|invalid parameter/i,
