@@ -225,3 +225,39 @@ export function suggestedTools(): string[] {
   const names = RULES.map((r) => r.suggested_next_tool).filter((n): n is string => Boolean(n));
   return [...new Set(names)].sort();
 }
+
+// ── Success envelope (S1b, behind a flag) ──
+//
+// The failure envelope above is always on. The *success* shape is a breaking
+// change for any host that reads fields off `content[0].text`, so it ships
+// behind `responseEnvelope.success` (default off) for one release, then becomes
+// the default. `setSuccessEnvelopeEnabled` is called once at startup from the
+// server constructor.
+
+let successEnvelopeEnabled = false;
+
+export function setSuccessEnvelopeEnabled(enabled: boolean): void {
+  successEnvelopeEnabled = enabled;
+}
+
+export function isSuccessEnvelopeEnabled(): boolean {
+  return successEnvelopeEnabled;
+}
+
+/**
+ * Wraps a successful payload so it carries `ok: true`, mirroring the failure
+ * envelope.
+ *
+ * Object results keep their fields at the **top level** (`{ ...data, ok: true }`)
+ * rather than nesting under `data`: a host that already reads `parsed.name` keeps
+ * working, which is the whole point of spreading rather than nesting. Arrays and
+ * scalars are nested under `result`, because spreading an array would lose it and
+ * a result that carries its own `ok` key would collide.
+ */
+export function wrapSuccess(data: unknown): unknown {
+  if (Array.isArray(data)) return { ok: true, result: data };
+  if (data !== null && typeof data === 'object') {
+    return { ...(data as Record<string, unknown>), ok: true };
+  }
+  return { ok: true, result: data };
+}

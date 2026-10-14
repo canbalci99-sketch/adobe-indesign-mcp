@@ -85,6 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a real export. Running it found the undo-group and undo-property bugs listed
   under _Fixed_; with those fixed it flows the whole story and one Undo restores
   the page count
+- **An opt-in success envelope (`RESPONSE_ENVELOPE_SUCCESS`).** Failures were
+  already enveloped; successful results were not, so a host had to branch on
+  `isError` and then guess the shape. Setting the flag (or
+  `responseEnvelope.success: true` in the JSON config) wraps every successful
+  result as `{ ok: true, ... }`, so one key covers both outcomes. Object results
+  keep their fields at the top level — a host reading `parsed.name` is unaffected
+  — while arrays and scalars nest under `result`. It is **off by default**
+  because it is a response-shape change, and ships opt-in for one release before
+  the shape becomes the default
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and

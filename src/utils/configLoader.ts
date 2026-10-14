@@ -38,6 +38,15 @@ const configSchema = z.object({
       vbsPath: z.string().optional(),
     })
     .default({}),
+  responseEnvelope: z
+    .object({
+      // Off by default. Turning it on makes every *successful* tool result an
+      // `{ ok: true, ... }` envelope so a host can branch on one key for both
+      // outcomes. It is a response-shape change, so it ships behind this flag
+      // for one release before the shape becomes the default.
+      success: z.boolean().default(false),
+    })
+    .default({}),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -65,6 +74,9 @@ const defaultConfig: AppConfig = {
   },
   comBridge: {
     enabled: false,
+  },
+  responseEnvelope: {
+    success: false,
   },
 };
 
@@ -143,6 +155,12 @@ function applyEnvOverrides(base: AppConfig): AppConfig {
       ...(envBool('COM_BRIDGE_ENABLED') !== undefined && { enabled: envBool('COM_BRIDGE_ENABLED') }),
       ...(envStr('COM_BRIDGE_CSCRIPT_PATH') !== undefined && { cscriptPath: envStr('COM_BRIDGE_CSCRIPT_PATH') }),
       ...(envStr('COM_BRIDGE_VBS_PATH') !== undefined && { vbsPath: envStr('COM_BRIDGE_VBS_PATH') }),
+    },
+    responseEnvelope: {
+      ...base.responseEnvelope,
+      ...(envBool('RESPONSE_ENVELOPE_SUCCESS') !== undefined && {
+        success: envBool('RESPONSE_ENVELOPE_SUCCESS'),
+      }),
     },
     logging: {
       ...base.logging,

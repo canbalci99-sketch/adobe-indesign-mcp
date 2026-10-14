@@ -105,6 +105,13 @@ tool name; thread it through `withLogging`.
 - Wire the envelope into `withErrorHandling`; keep `isError:true`; pass `ImageContent` through **unmodified**.
 - Version bump + CHANGELOG + a migration note stating exactly what changed for a host reading `content[0].text`.
 - Optional: land behind a config flag for one release.
+  **Done 2026-10-14** — see the mutation entry. The chosen shape is the preferred
+  spread (`{ ...data, ok: true }`) for objects, `result:` for arrays/scalars, so
+  the 105 parse sites only need touching if the default ever flips. Note the plan's
+  "extend the existing `okResponse`/`errorResponse` pair" was wrong in fact:
+  `okResponse`/`chunkResponse`/`errorResponse` in `responseChunker.ts` have **no
+  production callers** (only `responseChunker.test.ts`), so `formatResponse` +
+  `ChangesHandler.getStatus` are the real success seams.
 
 **Verification.**
 - `tests/unit/errorEnvelope.test.ts`: every code reachable from ≥1 test.
@@ -367,6 +374,22 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S1b landed behind a config flag (open question 4 resolved).**
+  The failure envelope (S1a) stays always-on and additive. The *success* shape —
+  the half the plan flagged as the response-contract change for all tools — now
+  ships behind `responseEnvelope.success` (`RESPONSE_ENVELOPE_SUCCESS`), default
+  **off**, for one release. When on, a successful result is `{ ok: true, ... }`.
+  The plan preferred *spreading* `ok:true` into object results over nesting under
+  `data:`, and that is what it does: `{ ...data, ok: true }`, so the 105 existing
+  test parse sites (which read `parsed.name`) would survive the eventual flip to
+  default without a rewrite. Arrays and scalars nest under `result`, because
+  spreading an array loses it and a result that carries its own `ok` key would
+  collide with the envelope. The seam is `formatResponse` (every handler's success
+  path, 228 call sites) plus `ChangesHandler.getStatus`, the one bespoke success
+  builder; `preview_document`'s `ImageContent` bypasses both and is never wrapped.
+  The flag is read once in the server constructor via a module-level setter, which
+  keeps `formatResponse` pure and handler-free. Decision recorded here because it
+  makes S1's "accept the shape change" question a flag rather than a fork.
 - **2026-10-14** — **S4 gate run live; it found three P-level bugs and the fix
   changes the undo mechanism.** InDesign was opened, so `npm run smoke:recipes`
   ran for real. It immediately falsified three things the unit tests "passed":
@@ -572,3 +595,8 @@ Any change to a step records what changed, why, what it blocks, and the date.
 2. **npm publishing.** S5 needs your credentials. S6 and S9 are gated behind it.
 3. **Windows machine.** S10's second half needs one. Without it, G11 stays open.
 4. **S1 scope.** Do you accept the response-shape change for all 194 tools, or should it land behind a config flag for one release?
+   **Resolved 2026-10-14: behind a config flag for one release.** The failure
+   envelope (S1a) is always on and additive. The success shape (S1b) ships behind
+   `responseEnvelope.success` / `RESPONSE_ENVELOPE_SUCCESS`, default **off**; when
+   on, object results are spread (`{ ok: true, ... }`) so `parsed.name` keeps
+   working and the eventual flip to default is cheap. See the mutation entry below.

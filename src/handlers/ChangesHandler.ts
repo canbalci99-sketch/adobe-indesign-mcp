@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { IHandler, ToolDefinition, ToolResult } from '../types/index.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
+import { isSuccessEnvelopeEnabled, wrapSuccess } from '../errors/envelope.js';
 import type { ChangeTracker } from '../core/ChangeTracker.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -45,8 +46,9 @@ export class ChangesHandler implements IHandler {
       params.since !== undefined
         ? { ...info, changed: this.tracker.hasChangedSince(params.since) }
         : info;
+    const shaped = isSuccessEnvelopeEnabled() ? wrapSuccess(payload) : payload;
     return {
-      content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(shaped, null, 2) }],
     };
   }
 }

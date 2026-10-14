@@ -1,5 +1,5 @@
 import type { ToolResult } from '../types/index.js';
-import { toErrorEnvelope } from '../errors/envelope.js';
+import { toErrorEnvelope, isSuccessEnvelopeEnabled, wrapSuccess } from '../errors/envelope.js';
 
 export class InDesignError extends Error {
   public readonly code: string;
@@ -50,7 +50,14 @@ export function formatResponse(data: unknown): ToolResult {
   }
 
   return {
-    content: [{ type: 'text', text: JSON.stringify(parsed ?? 'ok') }],
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          isSuccessEnvelopeEnabled() ? wrapSuccess(parsed ?? 'ok') : (parsed ?? 'ok'),
+        ),
+      },
+    ],
   };
 }
 

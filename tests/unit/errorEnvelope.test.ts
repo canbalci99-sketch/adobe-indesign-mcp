@@ -6,12 +6,15 @@
  * tests pin the classification table and — more importantly — that the two
  * seams which actually carry failures to the host both emit an envelope.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   classifyError,
   suggestedToolFor,
   suggestedTools,
   toErrorEnvelope,
+  wrapSuccess,
+  setSuccessEnvelopeEnabled,
+  isSuccessEnvelopeEnabled,
   type InDesignErrorCode,
 } from '../../src/errors/envelope.js';
 import { withErrorHandling, compose } from '../../src/utils/middleware.js';
@@ -247,5 +250,57 @@ describe('formatResponse ExtendScript seam', () => {
     const result = formatResponse({ status: 'ok' });
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toBe('{"status":"ok"}');
+  });
+});
+
+describe('success envelope (S1b, behind a flag)', () => {
+  afterEach(() => {
+    setSuccessEnvelopeEnabled(false);
+  });
+
+  it('is off by default, so formatResponse is byte-for-byte unchanged', () => {
+    expect(isSuccessEnvelopeEnabled()).toBe(false);
+    expect(formatResponse({ status: 'ok' }).content[0].text).toBe('{"status":"ok"}');
+  });
+
+  it('spreads ok:true over object results so top-level fields keep working', () => {
+    // This is why the shape is a spread and not `{ ok, data }`: a host that
+    // reads `parsed.name` must keep working after the shape becomes default.
+    setSuccessEnvelopeEnabled(true);
+    const text = formatResponse({ name: 'doc.indd', pages: 3 }).content[0].text as string;
+    const parsed = JSON.parse(text);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.name).toBe('doc.indd');
+    expect(parsed.pages).toBe(3);
+  });
+
+  it('nests arrays and scalars under result', () => {
+    setSuccessEnvelopeEnabled(true);
+    expect(JSON.parse(formatResponse([1, 2, 3]).content[0].text as string)).toEqual({
+      ok: true,
+      result: [1, 2, 3],
+    });
+    expect(JSON.parse(formatResponse('done').content[0].text as string)).toEqual({
+      ok: true,
+      result: 'done',
+    });
+  });
+
+  it('a result that carries its own ok key cannot flip the envelope', () => {
+    setSuccessEnvelopeEnabled(true);
+    // wrapSuccess forces ok:true last, so a data field named `ok` is overwritten
+    // rather than shadowing the envelope.
+    expect(wrapSuccess({ ok: false, x: 1 })).toEqual({ ok: true, x: 1 });
+  });
+
+  it('does not touch error envelopes', () => {
+    setSuccessEnvelopeEnabled(true);
+    const result = formatResponse({
+      __extendscript_error: true,
+      message: 'Expected: ;',
+      line: 1,
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.parse(result.content[0].text as string).ok).toBe(false);
   });
 });

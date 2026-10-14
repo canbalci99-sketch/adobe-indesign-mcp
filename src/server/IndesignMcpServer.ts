@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { AppConfig } from '../utils/configLoader.js';
 import { logger } from '../utils/logger.js';
+import { setSuccessEnvelopeEnabled } from '../errors/envelope.js';
 import { INDESIGN_MCP_INSTRUCTIONS } from '../prompts/instructions.js';
 import { SessionManager } from '../core/SessionManager.js';
 import { ChangeTracker } from '../core/ChangeTracker.js';
@@ -55,6 +56,10 @@ export class IndesignMcpServer {
 
   constructor(config: AppConfig) {
     this.config = config;
+    // Turn on the success envelope before any tool runs. Off unless the config
+    // (or RESPONSE_ENVELOPE_SUCCESS) opts in — it is a response-shape change.
+    // `?.` because a hand-built config (tests, embedders) may predate the key.
+    setSuccessEnvelopeEnabled(config.responseEnvelope?.success ?? false);
     if (config.comBridge.enabled) {
       if (process.platform !== 'win32') {
         throw new Error(

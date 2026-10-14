@@ -1,7 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IndesignMcpServer } from '../../src/server/IndesignMcpServer.js';
 import { ExpressBridgeServer } from '../../src/bridge/ExpressBridgeServer.js';
 import { BridgeServer } from '../../src/bridge/BridgeServer.js';
+import {
+  isSuccessEnvelopeEnabled,
+  setSuccessEnvelopeEnabled,
+} from '../../src/errors/envelope.js';
 import type { AppConfig } from '../../src/utils/configLoader.js';
 
 vi.mock('../../src/bridge/ExpressBridgeServer.js', () => ({
@@ -59,6 +63,9 @@ const mockConfig: AppConfig = {
   },
   comBridge: {
     enabled: false,
+  },
+  responseEnvelope: {
+    success: false,
   },
 };
 
@@ -183,5 +190,23 @@ describe('COM bridge opt-in', () => {
     } finally {
       Object.defineProperty(process, 'platform', { value: originalPlatform });
     }
+  });
+});
+
+describe('responseEnvelope success flag wiring', () => {
+  afterEach(() => {
+    // The flag is a module-global so formatResponse can read it; reset it so a
+    // test that turns it on cannot leak into the next one.
+    setSuccessEnvelopeEnabled(false);
+  });
+
+  it('leaves the success shape alone unless the config opts in', () => {
+    new IndesignMcpServer(mockConfig);
+    expect(isSuccessEnvelopeEnabled()).toBe(false);
+  });
+
+  it('turns the success envelope on when responseEnvelope.success is true', () => {
+    new IndesignMcpServer({ ...mockConfig, responseEnvelope: { success: true } });
+    expect(isSuccessEnvelopeEnabled()).toBe(true);
   });
 });

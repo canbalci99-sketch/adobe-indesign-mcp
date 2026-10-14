@@ -179,6 +179,31 @@ is actually registered — `tests/contract/errorRecovery.test.ts` enforces that,
 because a hint pointing at a nonexistent tool is worse than no hint. See
 [src/errors/envelope.ts](../src/errors/envelope.ts).
 
+Two codes — `BRIDGE_ERROR` and `EXTENDSCRIPT_RUNTIME_ERROR` — are the bridge's
+catch-alls for "the script failed". They carry no more information than the
+script's own message, so they deliberately yield to the message rules and only
+fall back to themselves when nothing matches. The *specific* transport codes
+(timeout, cancelled, output too large) stay authoritative. This matters because
+the macOS bridge labels every InDesign-side failure `BRIDGE_ERROR`; treating it
+as authoritative made the whole rules table unreachable in production.
+
+### The success envelope (behind a flag)
+
+Failures are always enveloped. Success is not, by default — the shape change is
+breaking for a host that reads fields off `content[0].text`, so it ships behind
+`responseEnvelope.success` (env: `RESPONSE_ENVELOPE_SUCCESS`, default `false`):
+
+```json
+{ "ok": true, "name": "brochure.indd", "pages": 4 }
+```
+
+Object results are **spread** (`{ ...data, ok: true }`) so a host that already
+reads `parsed.name` keeps working; arrays and scalars are nested under `result`,
+because spreading an array loses it and a result carrying its own `ok` key would
+collide. `formatResponse` and `ChangesHandler.getStatus` are the only two
+success builders, so turning the flag on covers every tool without a per-handler
+opt-in. Image content from `preview_document` bypasses both and is never wrapped.
+
 ## The workflow contract
 
 On `initialize`, the server advertises `INDESIGN_MCP_INSTRUCTIONS` (from

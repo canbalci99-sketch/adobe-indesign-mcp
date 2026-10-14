@@ -38,6 +38,7 @@ describe('configLoader', () => {
         server: { transport: 'stdio', name: 'indesign-nutria-mcp', version: '1.0.0' },
         logging: { level: 'info' },
         comBridge: { enabled: false },
+        responseEnvelope: { success: false },
       });
     });
 
@@ -282,5 +283,41 @@ describe('configLoader — comBridge (Windows COM opt-in)', () => {
   it('ignores invalid boolean values', () => {
     process.env.COM_BRIDGE_ENABLED = 'perhaps';
     expect(loadConfig().comBridge.enabled).toBe(false);
+  });
+});
+
+describe('configLoader — responseEnvelope (S1b success shape, behind a flag)', () => {
+  const KEYS = ['RESPONSE_ENVELOPE_SUCCESS'] as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    for (const k of KEYS) delete process.env[k];
+  });
+
+  afterEach(() => {
+    for (const k of KEYS) delete process.env[k];
+  });
+
+  it('defaults to off — the success shape only changes when opted in', () => {
+    expect(loadConfig().responseEnvelope.success).toBe(false);
+  });
+
+  it('can be turned on from the JSON config file', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ responseEnvelope: { success: true } }));
+    expect(loadConfig('/x/config.json').responseEnvelope.success).toBe(true);
+  });
+
+  it('parses RESPONSE_ENVELOPE_SUCCESS', () => {
+    process.env.RESPONSE_ENVELOPE_SUCCESS = 'true';
+    expect(loadConfig().responseEnvelope.success).toBe(true);
+    process.env.RESPONSE_ENVELOPE_SUCCESS = 'false';
+    expect(loadConfig().responseEnvelope.success).toBe(false);
+  });
+
+  it('ignores a nonsense value', () => {
+    process.env.RESPONSE_ENVELOPE_SUCCESS = 'sometimes';
+    expect(loadConfig().responseEnvelope.success).toBe(false);
   });
 });
