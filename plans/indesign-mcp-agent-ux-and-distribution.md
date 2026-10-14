@@ -151,6 +151,15 @@ then presents 194 undifferentiated tools. Highest leverage per line in the plan.
 
 **Exit criteria.** Present on `initialize`; no reference to a non-existent tool; token cost stated.
 
+**Status 2026-10-14 — landed, ahead of S3.** The plan sequenced this after S3 only
+for the "pin the document" phrasing, so waiting would have withheld the plan's own
+highest-leverage change for no reason; the pinning rule is phrased around
+`document_listOpen` and "ask which document" instead, so the contract names no
+unshipped capability. Present on `initialize`, 2436 chars ≈ 609 tokens, and every
+tool it names resolves. One deviation from the task text above: the contract
+points at `document_getState`, not `document_getInfo`, as the source of truth
+before mutating — that task line predates S3's tool. See the mutation entry.
+
 **Rollback.** One string and one constructor argument.
 
 ---
@@ -291,6 +300,13 @@ ships and `plugin/manifest.json` exists, so add only what is genuinely absent.
 
 **Exit criteria.** Green on a clean checkout; every new check has been seen to fail.
 
+**Status 2026-10-14 — landed, and it paid for itself before it was finished.**
+Every new check was demonstrated failing for the right reason — lint on a planted
+unused variable, `verify:tool-counts` on a badge and description set to 191,
+`verify:pack` on a reinstated exclusion, the title pattern on a junk title — and
+the lint that had never actually run turned up a live bug in `export_batchFolder`.
+See the mutation entry.
+
 **Rollback.** Workflow files revert independently.
 
 ---
@@ -312,6 +328,12 @@ documentation.
 **Verification.** Every command in every doc executed once; counts agree with the registry (S7 enforces).
 
 **Exit criteria.** A new contributor can build, test, and run the smoke test from docs alone.
+
+**Status 2026-10-14 — landed.** Four docs written against the code rather than the
+README, with the tool catalog generated from the registry and gated by
+`verify:docs` so it cannot drift. `WINDOWS.md` also gained the plain statement of
+what the COM path has and has not been exercised against, which is S10's
+"closed or stated plainly" half. See the mutation entry.
 
 **Rollback.** Docs only.
 
