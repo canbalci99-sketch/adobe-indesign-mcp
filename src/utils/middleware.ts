@@ -1,5 +1,7 @@
 import type { Middleware, ToolResult } from '../types/index.js';
 import { logger } from './logger.js';
+import { InDesignError } from './errorHandler.js';
+import { toErrorEnvelope } from '../errors/envelope.js';
 
 export function withLogging(handlerName: string): Middleware {
   return (next) =>
@@ -24,8 +26,15 @@ export function withErrorHandling(): Middleware {
       try {
         return await next(args, extra);
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Transport codes (EXECUTION_TIMEOUT, BRIDGE_ERROR, CANCELLED) classify
+        // more precisely than the message text can, so pass them through.
+        const envelope = toErrorEnvelope({
+          message,
+          code: err instanceof InDesignError ? err.code : undefined,
+        });
         return {
-          content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }],
+          content: [{ type: 'text', text: JSON.stringify(envelope) }],
           isError: true,
         };
       }

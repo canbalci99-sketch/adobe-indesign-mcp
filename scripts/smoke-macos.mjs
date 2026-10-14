@@ -199,16 +199,26 @@ try {
     const info = await request('tools/call', { name: 'document_getInfo', arguments: {} });
     check('document_getInfo', !info?.result?.isError, textOf(info).slice(0, 200));
 
-    // Negative path: a bad reference must come back as a protocol error, not as
-    // silence or a hang. A silent success here is how bridge bugs hide.
+    // Negative path: a bad reference must come back as a structured envelope
+    // the agent can act on — not silence, not a hang, and not bare prose. This
+    // is the only check that proves the error contract survives all four
+    // processes (MCP -> bridge -> proxy -> InDesign).
     const bad = await request('tools/call', {
       name: 'text_getContent',
       arguments: { pageIndex: 0, frameIndex: 999 },
     });
+    let badEnvelope = null;
+    try {
+      badEnvelope = JSON.parse(textOf(bad));
+    } catch {
+      badEnvelope = null;
+    }
     check(
-      'bad reference returns a clean error',
-      Boolean(bad?.result?.isError) || /error|not found|invalid/i.test(textOf(bad)),
-      textOf(bad).slice(0, 200),
+      'bad reference returns a structured error envelope',
+      Boolean(bad?.result?.isError) && badEnvelope?.ok === false && Boolean(badEnvelope?.code),
+      badEnvelope
+        ? `code=${badEnvelope.code}${badEnvelope.suggested_next_tool ? ` next=${badEnvelope.suggested_next_tool}` : ''}`
+        : textOf(bad).slice(0, 200),
     );
 
     // saveOptions defaults to 'ask', which raises a modal dialog in InDesign and

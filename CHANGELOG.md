@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Structured error envelopes.** A failing tool call now returns a JSON envelope
+  — `{ ok: false, code, message, suggested_next_tool?, suggested_args? }` —
+  instead of bare prose, so a host LLM can tell a missing document from a stale
+  reference from a timeout instead of guessing. Fifteen failure classes are
+  classified. Where a remedy exists the envelope names the tool to call next: a
+  bad frame index (`text_getContent` with `frameIndex: 999`) now answers
+  `invalid_reference` and suggests `document_getInfo`, and a timeout suggests
+  `document_listOpen` as a liveness probe. ExtendScript runtime errors carry
+  their source `line`, `file` and `stack`. Every `suggested_next_tool` is
+  verified against the live tool registry by
+  `tests/contract/errorRecovery.test.ts`, so a hint can never point at a tool
+  that does not exist
+
+### Changed
+- **Error responses are JSON text, not prose.** The failing message is preserved
+  verbatim inside the envelope, so callers that read the text still see it, and
+  `isError: true` is unchanged. This applies to exceptions caught by
+  `withErrorHandling` (all tools) and to ExtendScript runtime errors surfaced by
+  `formatResponse`
+
 ## [1.4.2] - 2026-09-27
 
 Merges the fixes contributed through the forks, plus regression tests for each.

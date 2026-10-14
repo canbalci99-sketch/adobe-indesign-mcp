@@ -367,6 +367,24 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S1 landed, error path only (S1a).** Split S1 in two after
+  establishing where the risk is: the success-shape change is the dangerous half
+  (105 `JSON.parse` sites in the handler tests read fields off the top level),
+  while the error path is genuinely additive — `isError: true` already existed
+  and the single assertion on error text is `toContain`, not exact. Built
+  `src/errors/envelope.ts` and wired it into the two seams that actually carry
+  failures: `withErrorHandling` (all 194 tools) and `formatResponse`
+  (ExtendScript errors). `formatErrorResponse` turned out to be dead code
+  (0 callers) and was left untouched rather than put at risk. **F15 was wrong:**
+  the review said `withErrorHandling` needed the tool name threaded through it;
+  it does not, because the suggestion derives from the error pattern and not
+  from the caller — so all 194 call sites are unchanged and the 194-edit diff the
+  review implied never materialised. 60 files / 1002 tests green; the new
+  contract guard was demonstrated failing for the right reason (a deliberately
+  broken suggestion) and restored. The live smoke check was strengthened to
+  assert a structured envelope, but **could not be verified live** — InDesign was
+  closed at the time. **Success-shape change (S1b) deferred** pending the
+  maintainer's flag decision (open question 4).
 - **2026-10-14** — v1 → v2 after adversarial review. Corrected three false gap
   claims (G3 preview, G10 docs, G12 packaging), fixed the critical path and the
   parallelisable set, removed the false "chunker carries image shape" premise

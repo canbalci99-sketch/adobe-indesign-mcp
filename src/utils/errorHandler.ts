@@ -1,4 +1,5 @@
 import type { ToolResult } from '../types/index.js';
+import { toErrorEnvelope } from '../errors/envelope.js';
 
 export class InDesignError extends Error {
   public readonly code: string;
@@ -35,11 +36,15 @@ export function formatResponse(data: unknown): ToolResult {
   const parsed = parseResult(data);
 
   if (isExtendScriptError(parsed)) {
-    const parts = [`ExtendScript error: ${parsed.message}`, `Line: ${parsed.line}`];
-    if (parsed.fileName) parts.push(`File: ${parsed.fileName}`);
-    if (parsed.stack) parts.push(`Stack:\n${parsed.stack}`);
+    const envelope = toErrorEnvelope({
+      message: parsed.message,
+      code: 'EXTENDSCRIPT_RUNTIME_ERROR',
+      line: parsed.line,
+      file: parsed.fileName,
+      stack: parsed.stack,
+    });
     return {
-      content: [{ type: 'text', text: parts.join('\n') }],
+      content: [{ type: 'text', text: JSON.stringify(envelope) }],
       isError: true,
     };
   }
