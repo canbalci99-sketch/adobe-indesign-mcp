@@ -7,6 +7,25 @@
   "bin": {
     "indesign-nutria-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist/",
+    "assets/",
+    "plugin/",
+    "skills/",
+    "docs/",
+    "media/",
+    "bridge-proxy.mjs",
+    "jxa-driver.js",
+    "start-bridge.sh",
+    "indesign-nutria-mcp.json",
+    "opencode.json",
+    "opencode-indesign.json",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "WINDOWS.md",
+    ".env.example"
+  ],
   "homepage": "https://github.com/nutriandrea/adobe-indesign-mcp#readme",
   "repository": {
     "type": "git",

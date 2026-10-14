@@ -236,6 +236,21 @@ unmeasured.
 - `prepublishOnly`: `build && test && verify:pack` (from S7).
 - Publish, then rewrite the README install section back to `npx`.
 
+**Status 2026-10-14 — everything not behind the credential is done.** `files` is
+now an allowlist (there were both a `.npmignore` denylist *and* no `files`, which
+is how a stray 2.9 MB `bauhaus-page4.jpg` at the repo root — referenced by
+nothing — plus `plans/`, `media/` and a portfolio script ended up in the tarball).
+The package now ships **1.6 MB unpacked instead of 4.4 MB** and still contains
+everything the runtime reaches for (`assets/windows/*.vbs` is resolved as
+`../../assets/…` from `dist/bridge/`, so it must stay; the proxy and driver are
+asserted by `verify:pack`). The inert `.npmignore` was removed rather than left
+beside the allowlist — two mechanisms that disagree is the bug class this step
+exists to stop, and the earlier "packaged macOS bridge was broken on install"
+regression came from exactly that denylist. `prepublishOnly` already runs
+`verify && verify:pack`. **Blocked here:** `npm whoami` returns `ENEEDAUTH`, so
+step 1 and step 5 cannot run — the README deliberately says the package is not
+published rather than claiming a `npx` that would fail.
+
 **Verification.** `npm pack`, install the tarball into a clean temp dir, run it.
 
 **Exit criteria.** `npx indesign-nutria-mcp` works from a clean machine.
@@ -404,6 +419,28 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S5's non-credential half done; two correctness fixes riding
+  along.** S5 is blocked only on the credential, so everything else in it was
+  done. **`files` is now an allowlist and `.npmignore` is gone.** The package had
+  a denylist and no allowlist, and the denylist is how a stray 2.9 MB
+  `bauhaus-page4.jpg` at the repo root — referenced by *nothing* in the tree —
+  shipped, along with `plans/`, `media/` and `portfolio-creative.mjs`: **4.4 MB
+  unpacked**. The allowlist names what a user needs (built `dist/`, the bridge
+  runtimes, the UXP plugin, the skill, `docs/`) for **1.6 MB unpacked**, and
+  `verify:pack` still boots the artifact and finds 197 tools plus the contract.
+  `.npmignore` was removed rather than left inert beside the allowlist: two
+  mechanisms that can disagree is the bug class this step exists to stop, and the
+  `v1.4.2` "packaged macOS bridge was broken on install" fix was a denylist that
+  excluded `bridge-proxy.mjs` while the package still shipped `start-bridge.sh`
+  to exec it. A `files` entry is authoritative even against `.gitignore`
+  (`dist/` is gitignored and still ships), which is why one mechanism is enough.
+  Two smaller fixes: the initialize contract told every session to launch
+  `scripts/start-bridge.sh`, a path that does not exist (the script is
+  `./start-bridge.sh` at the root) — wrong exactly when the bridge is already
+  down, which is when it is read; and the `document_close` default now has a live
+  guard (see the S10 entry). **Still blocked:** `npm whoami` → `ENEEDAUTH`, and the
+  name/scope decision is the maintainer's, so publish and the README `npx`
+  rewrite wait. The README keeps saying the package is unpublished, which is true.
 - **2026-10-14** — **Both live gates green; S10's macOS half done; a plan-vs-code
   drift corrected.** Re-ran the two live gates against InDesign 2026 with the
   fixes in place. **`smoke:recipes` 17/17** — the recipe flows the story, one Undo

@@ -168,8 +168,10 @@ Three scripts guard the things that go stale silently:
   on disk differs. Change a tool, run `npm run docs:tools`.
 - **`verify:pack`** packs the tarball, installs it into a temp dir, boots the
   packed entry point over stdio, and asserts it advertises 197 tools — the check
-  that catches a `.npmignore` shipping `start-bridge.sh` without the
-  `bridge-proxy.mjs` it execs.
+  that catches a `files` allowlist shipping `start-bridge.sh` without the
+  `bridge-proxy.mjs` it execs. It also asserts those runtime files are present by
+  name, because a handshake alone would not notice: the server only reaches for
+  the proxy when it actually runs a script.
 
 `npm run verify` runs lint + both count/doc gates + the test suite; CI runs it
 on Node 18, 20, and 22, then a separate job runs `verify:pack`.

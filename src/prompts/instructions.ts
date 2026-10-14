@@ -21,7 +21,7 @@ object: document, page, text, style, object, image, table, colour, font, export.
 SESSION BOOTSTRAP
 - InDesign must be running and the bridge reachable. If a call fails with code
   "bridge_not_connected", stop and tell the user to launch InDesign and the
-  bridge (the UXP panel, or scripts/start-bridge.sh on macOS). Do not retry in a
+  bridge (the UXP panel, or ./start-bridge.sh on macOS). Do not retry in a
   loop — the bridge cannot appear on its own.
 - Check the connection once at the start with document_listOpen, not every turn.
 

@@ -37,6 +37,13 @@ const REQUIRED_RUNTIME_FILES = [
   'jxa-driver.js',
   'start-bridge.sh',
   'assets/windows/run_jsx_persistent.vbs',
+  // The UXP panel is the documented alternative to the proxy, and the skill is
+  // what a host loads to use the tools well. Neither is reached by the server
+  // itself, so neither would be missed by the boot handshake above — which is
+  // exactly why they are named here.
+  'plugin/manifest.json',
+  'plugin/index.js',
+  'skills/indesign/indesign-mcp-layout/SKILL.md',
 ];
 
 const fail = (message) => {
@@ -85,7 +92,7 @@ if (missing.length > 0) {
   console.error(`verify-pack: the tarball is missing files it needs at runtime:`);
   for (const p of missing) console.error(`  - ${p}`);
   console.error(
-    `  (packed ${packagedPaths.size} files; check .npmignore — an entry point shipped without the file it runs is broken on install)`,
+    `  (packed ${packagedPaths.size} files; check the files allowlist in package.json — an entry point shipped without the file it runs is broken on install)`,
   );
   process.exit(1);
 }

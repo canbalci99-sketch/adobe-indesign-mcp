@@ -97,6 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — while arrays and scalars nest under `result`. It is **off by default**
   because it is a response-shape change, and ships opt-in for one release before
   the shape becomes the default
+- **A `files` allowlist for the published package.** There was a `.npmignore`
+  denylist instead, which is how a stray 2.9 MB `bauhaus-page4.jpg` left at the
+  repo root — referenced by nothing — rode along with `plans/` and a portfolio
+  build script, for **4.4 MB unpacked**. The package now names exactly what a
+  user needs: the built `dist/`, the bridge runtimes, the UXP plugin, the skill,
+  and the `docs/` the README links to. That is **1.6 MB unpacked**, and the
+  `.npmignore` is gone rather than left inert beside the allowlist, so there is
+  one mechanism instead of two
 
 ### Changed
 - **CI is reproducible and self-cancelling.** `actions/checkout` and
@@ -182,6 +190,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and fall back to the generic code only when no rule matches; specific transport
   codes (timeout, cancelled, output too large) stay authoritative. The live smoke
   caught this by classifying a bad reference as `bridge_error`
+- **The initialize contract named a script path that does not exist.** It told
+  every session to launch "`scripts/start-bridge.sh` on macOS", but the script is
+  `start-bridge.sh` at the repo root — there is no `scripts/` entry for it, so the
+  instruction pointed at a 404 and the one moment it is needed is the one moment
+  the bridge is already down
+- **The `document_close` trap was guarded by a check that could not see it.** The
+  live smoke closed with `saveOptions: 'no'` passed explicitly, so nothing noticed
+  a schema default drifting back to `'ask'` — which on a *modified* document raises
+  a modal save dialog, blocks until the bridge times out, and leaves InDesign
+  wedged. `npm run smoke:macos` now dirties a document and closes it relying on
+  the default
 
 ## [1.4.2] - 2026-09-27
 
