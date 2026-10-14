@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verified against the live tool registry by
   `tests/contract/errorRecovery.test.ts`, so a hint can never point at a tool
   that does not exist
+- **A workflow contract advertised on `initialize`.** The server now sends
+  `instructions` to the host covering the bridge bootstrap, state-before-action,
+  the `document_close` save-dialog trap, a warning against raw-ExtendScript
+  workarounds, the error-envelope shape, `preview_document` for verification,
+  and `undo_beginGroup` / `undo_endGroup` for multi-step edits. About 610 tokens,
+  paid once per session. Every tool it names is checked against the live
+  registry by `tests/unit/instructions.test.ts`
 
 ### Changed
 - **Error responses are JSON text, not prose.** The failing message is preserved

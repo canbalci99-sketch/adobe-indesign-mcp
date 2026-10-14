@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { AppConfig } from '../utils/configLoader.js';
 import { logger } from '../utils/logger.js';
+import { INDESIGN_MCP_INSTRUCTIONS } from '../prompts/instructions.js';
 import { SessionManager } from '../core/SessionManager.js';
 import { ChangeTracker } from '../core/ChangeTracker.js';
 import { ScriptExecutor } from '../bridge/ScriptExecutor.js';
@@ -67,10 +68,17 @@ export class IndesignMcpServer {
     this.sessionManager = new SessionManager();
     this.changeTracker = new ChangeTracker();
 
-    this.mcpServer = new McpServer({
-      name: config.server.name,
-      version: config.server.version,
-    });
+    this.mcpServer = new McpServer(
+      {
+        name: config.server.name,
+        version: config.server.version,
+      },
+      {
+        // Advertised to the host on initialize. Tools alone say what the server
+        // can do; this says how it expects to be driven.
+        instructions: INDESIGN_MCP_INSTRUCTIONS,
+      },
+    );
 
     // Register all handlers
     const handlers = [

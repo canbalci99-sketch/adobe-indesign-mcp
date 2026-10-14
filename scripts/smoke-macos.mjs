@@ -128,6 +128,15 @@ try {
   const serverName = init?.result?.serverInfo?.name;
   check('initialize', Boolean(serverName), serverName ?? JSON.stringify(init).slice(0, 200));
 
+  // The workflow contract is the only thing the host receives before it starts
+  // choosing tools. If it is not advertised here, the model is inferring again.
+  const instructions = init?.result?.instructions;
+  check(
+    'initialize advertises the workflow contract',
+    typeof instructions === 'string' && instructions.length > 200,
+    instructions ? `${instructions.length} chars` : 'absent',
+  );
+
   const list = await request('tools/list', {});
   const toolCount = list?.result?.tools?.length;
   check('tools/list returns the documented count', toolCount === EXPECTED_TOOLS, `got ${toolCount}`);

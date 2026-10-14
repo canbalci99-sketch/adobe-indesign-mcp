@@ -189,8 +189,8 @@ review called this over-engineering and it was right.
 
 Each runs inside a single undo group. **[rev]** v1 said the mechanism is
 "unused". **False:** `startUndoGroup`/`endUndoGroup` exist
-(`ScriptExecutor.ts:31,35`) and are already surfaced as the `undo_startGroup` /
-`undo_endGroup` tools (`UndoHandler.ts:37,42`). What is missing is *composing*
+(`ScriptExecutor.ts:31,35`) and are already surfaced as the `undo_beginGroup` /
+`undo_endGroup` tools (`UndoHandler.ts:36,42`). What is missing is *composing*
 them into a multi-step flow.
 
 **Gate to proceed further:** measure turns and tokens against the atomic
@@ -367,6 +367,17 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **S2 landed** (the workflow contract), ahead of S3. The plan
+  sequenced S2 after S3 only for the `document_id` "pin the document" phrasing;
+  everything else stands alone, so waiting on S3 would have withheld the plan's
+  self-declared highest-leverage change for no reason. Phrased the pinning rule
+  around `document_listOpen` and "ask which document" instead, so the contract
+  references no unshipped capability. `INDESIGN_MCP_INSTRUCTIONS` is wired into
+  the **second** `McpServer` argument (`{name, version}`, `{instructions}`), as
+  the SDK requires. Proven live without InDesign: a spawned server answers
+  `initialize` with the contract present, 2436 chars ≈ 609 tokens. Also
+  corrected a v2 error of fact: the undo tools are `undo_beginGroup` /
+  `undo_endGroup`, not `undo_startGroup`.
 - **2026-10-14** — **S1 landed, error path only (S1a).** Split S1 in two after
   establishing where the risk is: the success-shape change is the dangerous half
   (105 `JSON.parse` sites in the handler tests read fields off the top level),
