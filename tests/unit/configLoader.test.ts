@@ -19,7 +19,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 
 // ── SUT ──
 
-import { loadConfig } from '../../src/utils/configLoader.js';
+import { loadConfig, SERVER_VERSION } from '../../src/utils/configLoader.js';
 
 describe('configLoader', () => {
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe('configLoader', () => {
       expect(config).toEqual({
         bridge: { port: 8120, host: '127.0.0.1', maxPayload: 1048576, timeout: 30000 },
         httpBridge: { enabled: false, port: 3000, host: '127.0.0.1', token: '' },
-        server: { transport: 'stdio', name: 'indesign-nutria-mcp', version: '1.0.0' },
+        server: { transport: 'stdio', name: 'indesign-nutria-mcp', version: SERVER_VERSION },
         logging: { level: 'info' },
         comBridge: { enabled: false },
         responseEnvelope: { success: false },

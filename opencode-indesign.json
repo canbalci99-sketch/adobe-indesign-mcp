@@ -13,8 +13,7 @@
   },
   "server": {
     "transport": "websocket",
-    "name": "indesign-nutria-mcp",
-    "version": "1.0.0"
+    "name": "indesign-nutria-mcp"
   },
   "logging": {
     "level": "warn"

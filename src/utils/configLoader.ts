@@ -2,6 +2,18 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { z } from 'zod';
 
+/**
+ * The version this server advertises on `initialize`, and the one thing a host
+ * or a maintainer reads to tell which build is running. It is a literal rather
+ * than something read off `package.json` at startup so that nothing has to touch
+ * the disk to answer `initialize`, which means it can go stale silently — it did,
+ * for four releases: a 1.4.2 build reported itself as 1.0.0, alongside three
+ * other stale copies of the same string (`.env.example`, and two shipped config
+ * files that have since stopped stating it). Bumping this with the release is a
+ * step, so `tests/unit/serverVersion.test.ts` fails the moment it is forgotten.
+ */
+export const SERVER_VERSION = '1.4.2';
+
 const configSchema = z.object({
   bridge: z
     .object({
@@ -23,7 +35,7 @@ const configSchema = z.object({
     .object({
       transport: z.enum(['stdio', 'websocket']).default('stdio'),
       name: z.string().default('indesign-nutria-mcp'),
-      version: z.string().default('1.0.0'),
+      version: z.string().default(SERVER_VERSION),
     })
     .default({}),
   logging: z
@@ -67,7 +79,7 @@ const defaultConfig: AppConfig = {
   server: {
     transport: 'stdio',
     name: 'indesign-nutria-mcp',
-    version: '1.0.0',
+    version: SERVER_VERSION,
   },
   logging: {
     level: 'info',

@@ -321,8 +321,19 @@ documentation.
 **Depends on:** S5, S7 · **Parallel with:** S8 · **Model:** default
 
 **Tasks.** `release.yml` (tag → build → test → publish → release from
-CHANGELOG), `publish-mcp-registry.yml`, `sync-server-version.ts` so `server.json`
-cannot drift from `package.json`, `validate-release-tag.sh`.
+CHANGELOG), `publish-mcp-registry.yml`, `validate-release-tag.sh`, and a
+`server.json` generated from `package.json` rather than hand-written.
+
+**[rev] `sync-server-version.ts` is no longer needed for the version it was meant
+to protect.** It existed because the version was copied into four places — the
+config default, two shipped config files, the plugin manifest — and drifted for
+four releases: a 1.4.2 build advertised `1.0.0` on `initialize`. That is fixed at
+the source now. `SERVER_VERSION` is a single literal in `configLoader.ts`, the
+shipped configs state no version so they inherit it, and
+`tests/unit/serverVersion.test.ts` fails the moment any of it disagrees with
+`package.json`. A release still bumps one literal; the test makes forgetting
+loud. If `release.yml` needs to write a version into a file, generate that file
+then — do not reintroduce a second copy kept in sync by a script.
 
 **Verification.** Dry-run on a prerelease tag end to end.
 
@@ -419,6 +430,27 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-14** — **The advertised version was stale by four releases — fixed at
+  the source, with a gate.** A 1.4.2 build answered `initialize` with
+  `version: "1.0.0"` (verified against the built artifact, not inferred), because
+  the version was a hardcoded literal in the config default plus three more
+  copies — `indesign-nutria-mcp.json`, `opencode-indesign.json`,
+  `plugin/manifest.json` — each independently stale. That is the field a host, a
+  bug report and a support thread all use to identify a build, so it was wrong
+  for every user since 1.0.0. Fixed as one `SERVER_VERSION` literal that the
+  default reads, no version stated in the shipped configs (they inherit instead
+  of pinning), the plugin manifest stamped with the release version, and
+  `.env.example` explaining why it leaves `SERVER_VERSION` unset — a value pinned
+  in `.env` outlives an upgrade and keeps reporting the old version. The new
+  `tests/unit/serverVersion.test.ts` (3 tests) fails if any of them disagree with
+  `package.json`, which is what makes the one remaining manual step per release
+  safe to rely on. **Plan impact:** S9's `sync-server-version.ts` is superseded —
+  see S9. **Deliberately not changed:** `BridgeServer`'s handshake ack sends
+  `{ type: 'connected', version: '1.0.0' }`; it is unread by both the plugin
+  ("ignore non-request messages") and the proxy, and in a bridge handshake
+  `version` plausibly means the *protocol* version rather than the app version.
+  Guessing either way would be a coin flip on a field nothing consumes, so it is
+  recorded here instead.
 - **2026-10-14** — **S5's non-credential half done; two correctness fixes riding
   along.** S5 is blocked only on the credential, so everything else in it was
   done. **`files` is now an allowlist and `.npmignore` is gone.** The package had

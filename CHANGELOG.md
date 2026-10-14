@@ -195,6 +195,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `start-bridge.sh` at the repo root — there is no `scripts/` entry for it, so the
   instruction pointed at a 404 and the one moment it is needed is the one moment
   the bridge is already down
+- **The server reported itself as v1.0.0, four releases after v1.0.0.** The
+  version announced on `initialize` was a hardcoded `'1.0.0'` in the config
+  default, and three more copies of the same dead string sat beside it in
+  `indesign-nutria-mcp.json`, `opencode-indesign.json` and the UXP
+  `plugin/manifest.json`. The advertised version is exactly what a host, a bug
+  report and a support thread use to identify a build, and a stale one is worse
+  than a missing one because it looks authoritative. `SERVER_VERSION` is now the
+  single literal the default reads from, the two shipped config files state no
+  version at all so they inherit it rather than pinning a stale one, the plugin
+  manifest is stamped with the release version, and `.env.example` says why it
+  deliberately leaves `SERVER_VERSION` unset — a value pinned in `.env` would
+  keep reporting the version installed today after an upgrade. A 1.4.2 build now
+  answers `initialize` with `version: "1.4.2"`, checked against the built
+  artifact; `tests/unit/serverVersion.test.ts` fails if any of those drift again
 - **The `document_close` trap was guarded by a check that could not see it.** The
   live smoke closed with `saveOptions: 'no'` passed explicitly, so nothing noticed
   a schema default drifting back to `'ask'` — which on a *modified* document raises
