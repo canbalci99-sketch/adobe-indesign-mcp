@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.3] - 2026-10-18
 
 ### Added
 - **Structured error envelopes.** A failing tool call now returns a JSON envelope
@@ -319,6 +319,7 @@ Merges the fixes contributed through the forks, plus regression tests for each.
 - Custom timeout/maxResults limits for large documents
 - MCP resources: `mcp://tools/inventory` for agent auto-discovery
 
+[1.4.3]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.3.0...v1.4.0

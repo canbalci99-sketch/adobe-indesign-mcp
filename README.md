@@ -323,7 +323,43 @@ Every message is a single-line JSON-RPC object terminated by `\n`; there is no f
 
 ---
 
-## 🆕 What's New in v1.4.2
+## 🆕 What's New in v1.4.3
+
+### For AI agents
+
+| ⚠️ | Read this before you script |
+|---|---|
+| **Failures now tell you how to recover** | A failing call returns a JSON envelope `{ ok: false, code, message, suggested_next_tool?, suggested_args? }` instead of prose. Branch on `code`, and call `suggested_next_tool` when it is present rather than guessing. |
+| **State before action** | `document_getState` returns the front document's geometry, its index, every open document, the active layer and the selection count in one round-trip. Call it before mutating instead of assembling that state from four separate calls. |
+| **A recipe is one call, not a chain** | `recipe_flowTextStory` places a text file and flows it across pages; `recipe_exportPreset` applies a named PDF preset and exports. Measured live, the flow cost **1 call / 215 bytes** against **6 calls / 786 bytes** for the nearest atomic chain — which cannot place the text at all. |
+
+| Change | What it means for you |
+|--------|----------------------|
+| **Structured error envelopes** | Sixteen failure classes, each with a `suggested_next_tool` checked against the live registry (a bad frame index suggests `document_getInfo`; a timeout suggests `document_listOpen`). ExtendScript errors carry `line`, `file` and `stack`. |
+| **A workflow contract on connect** | The server advertises roughly 680 tokens of `instructions` — bridge bootstrap, state-before-action, the `document_close` save trap, the error-envelope shape and undo grouping. |
+| **`document_getState`** | One round-trip replaces the `document_getInfo` + `document_listOpen` + layer + selection sequence. |
+| **`preview_document` takes `documentIndex`** | Render any open document, not only the front one. Exports are capped at 4 MB and re-rendered once at a fitting resolution before failing with `output_too_large`. |
+| **Two new recipes** | `recipe_flowTextStory` and `recipe_exportPreset`, bringing the catalog to 197. |
+| **Opt-in success envelope** | `RESPONSE_ENVELOPE_SUCCESS` (or `responseEnvelope.success`) wraps successful results as `{ ok: true, ... }`, so a single key covers success and failure. **Off by default**, because it changes the response shape. |
+| **A smaller, correct package** | A `files` allowlist replaces the `.npmignore` denylist: **1.6 MB unpacked**, down from 4.4 MB — and the `bridge-proxy.mjs` that the macOS launcher execs is now actually shipped. |
+
+### Changed
+
+| Change | What it means for you |
+|--------|----------------------|
+| **Error responses are JSON text** | The failure message is preserved verbatim inside the envelope; `isError: true` is unchanged. |
+| **`document_close` defaults `saveOptions` to `"no"`** | `"ask"` raised a modal save dialog that blocked until the bridge timed out and could leave InDesign wedged; `"no"` cannot prompt. Call `document_save` first when you want the work kept. |
+
+### Fixed
+
+| Fix | What it means |
+|-----|---------------|
+| **Every call after `undo_beginGroup` failed** | `wrapExtendScript` set `app.scriptPreferences.undoMode`, a property InDesign does not have. Undo groups now run through `app.doScript(..., UndoModes.ENTIRE_SCRIPT)`. |
+| **`undo`, `redo` and `undo_history` threw on every call** | They read `document.undoable` / `document.redoable`, which are not part of the DOM. |
+| **The server reported itself as v1.0.0** | Four releases after v1.0.0 it advertised the old literal on `initialize`. `SERVER_VERSION` is now the single source of truth, and two gates keep it honest. |
+
+<details>
+<summary>v1.4.2</summary>
 
 ### For AI agents
 
@@ -340,6 +376,8 @@ Every message is a single-line JSON-RPC object terminated by `\n`; there is no f
 | **The panel connects itself** | The MCP Bridge panel connects on open, so there is no Connect click to miss. |
 | **InDesign 2026 anchoring** | Creating an anchored object no longer depends on `move()`, which 2026 rejects for insertion-point targets. |
 | **The shipped config starts everywhere** | It declared the wrong MCP transport and would have aborted startup on macOS and Linux had it enabled the Windows COM bridge. Both are now covered by a test. |
+
+</details>
 
 <details>
 <summary>v1.4.0</summary>
@@ -364,6 +402,8 @@ Every message is a single-line JSON-RPC object terminated by `\n`; there is no f
 | **One escaping path** | All handlers share a single battle-tested ExtendScript string escaper. |
 | **Hardened path validation** | File-path checks now use true containment (no prefix-collision escapes). |
 | **Honest status** | `getStatus().connected` reflects actual plugin connectivity, and CI enforces coverage gates. |
+
+</details>
 
 <details>
 <summary>What's New in v1.1.0</summary>
@@ -568,7 +608,7 @@ preference.
   app name was hardcoded to "Adobe InDesign 2024", so every other version
   failed. The same work also moved the connection handshake out of
   `app.doScript`, where it was being parsed as ExtendScript. Adopted and
-  extended — see [What's New](#-whats-new-in-v142).
+  extended — see [What's New in v1.4.2](CHANGELOG.md#142---2026-09-27).
 
 - **[@ijeetu](https://github.com/ijeetu)** — two fixes, both easy to miss and
   both real. The MCP Bridge panel now connects on open instead of waiting for

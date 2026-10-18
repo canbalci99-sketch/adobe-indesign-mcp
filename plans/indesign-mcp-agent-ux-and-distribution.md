@@ -452,6 +452,28 @@ on S5, so they are not.
 
 Any change to a step records what changed, why, what it blocks, and the date.
 
+- **2026-10-18** — **v1.4.3 shipped as a git-only release.** With npm credentials
+  still absent (open question 2) and a Windows machine still absent (open
+  question 3), the one unblocked release action was the git-only tag the decision
+  point listed, so the twenty commits landed since `v1.4.2` (S1a, S1b behind the
+  flag, S2, S3, S4, S5's non-credential half, S7, S8) are a released version
+  rather than an open `[Unreleased]` block. The bump moved every place the version
+  is written — `package.json`, `plugin/manifest.json`, `SERVER_VERSION` — and the
+  CHANGELOG `[Unreleased]` section became `[1.4.3] - 2026-10-18`, so the guard that
+  keeps those four in agreement is green. `npm run verify` (lint, tool counts,
+  docs, 1052 tests), `tsc --noEmit` and `verify:pack` all pass locally;
+  `verify:pack` confirms the packed artifact announces `v1.4.3` and 197 tools. The
+  README's "What's New" moved to v1.4.3 and the v1.4.2 block collapsed behind
+  `<details>`, matching the v1.4.0/v1.3.0/v1.1.0 pattern. **Also fixed:** the
+  v1.3.0 `<details>` block was never closed, so v1.1.0 was nested inside it and
+  everything after it — the Configuration, Windows and Project Structure sections
+  — sat inside an unclosed block; the missing close was added. **Deliberately not
+  done:** the version was taken as `1.4.3` per the decision point's own label even
+  though the release adds tools and changes the error response shape, which a
+  strict semver read would call a minor (`1.5.0`) — recorded rather than
+  second-guessed, since the numbering is the maintainer's. **Still open:** npm
+  publish (S5/S6/S9) and the Windows half of S10, both waiting on resources rather
+  than on code.
 - **2026-10-14** — **The advertised version was stale by four releases — fixed at
   the source, with a gate.** A 1.4.2 build answered `initialize` with
   `version: "1.0.0"` (verified against the built artifact, not inferred), because
