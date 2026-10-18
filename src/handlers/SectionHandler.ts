@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class SectionHandler implements IHandler {
@@ -58,7 +59,7 @@ export class SectionHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -88,7 +89,7 @@ export class SectionHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var section = doc.sections.add({ startPage: doc.pages[${params.startPageIndex}] });
       ${params.name ? `section.name = "${escName}";` : ''}
       section.pageNumberStart = ${params.pageNumberStart};
@@ -103,7 +104,7 @@ export class SectionHandler implements IHandler {
 
   private async list(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var result = [];
       for (var i = 0; i < doc.sections.length; i++) {
         var s = doc.sections[i];
@@ -129,7 +130,7 @@ export class SectionHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       doc.sections[${params.sectionIndex}].remove();
       JSON.stringify({ deleted: true, sectionIndex: ${params.sectionIndex} });
     `;
@@ -153,7 +154,7 @@ export class SectionHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var s = doc.sections[${params.sectionIndex}];
       s.pageNumberStart = ${params.pageNumberStart};
       ${params.numberingStyle ? `s.pageNumberStyle = ${numberingMap[params.numberingStyle]};` : ''}

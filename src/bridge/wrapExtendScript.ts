@@ -5,6 +5,12 @@ import { sanitizeCode } from '../utils/stringUtils.js';
 export interface WrapOptions {
   debug?: boolean;
   undoGroupActive?: boolean;
+  /**
+   * Document the script should act on: a name or a 0-based index. Injected as
+   * the `__TARGET_DOCUMENT_ID` global that `__resolveDocument()` reads. Null or
+   * omitted means the front document.
+   */
+  targetDocument?: string | number | null;
 }
 
 /**
@@ -50,7 +56,19 @@ function asStringLiteral(code: string): string {
  */
 export function wrapExtendScript(code: string, options: WrapOptions = {}): string {
   const helpers = getExtendScriptHelpers();
-  const polyfilled = `${JSON_POLYFILL}\n${helpers}\n${SECURITY_STUBS}`;
+
+  // The target document is bound by a plain global so `__resolveDocument()`,
+  // defined in the helpers above, can read it. It is part of the trusted bundle
+  // (never sanitised) but its value is always a literal we produce here: a
+  // string literal via asStringLiteral, or a validated integer.
+  const targetLiteral =
+    typeof options.targetDocument === 'number'
+      ? String(options.targetDocument)
+      : typeof options.targetDocument === 'string'
+        ? asStringLiteral(options.targetDocument)
+        : 'null';
+
+  const polyfilled = `${JSON_POLYFILL}\n${helpers}\nvar __TARGET_DOCUMENT_ID = ${targetLiteral};\n${SECURITY_STUBS}`;
 
   let wrapped = code;
 

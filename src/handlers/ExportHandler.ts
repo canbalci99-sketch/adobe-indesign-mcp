@@ -6,6 +6,7 @@ import { validateFilePath } from '../utils/security.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 import { filePathError } from '../utils/security.js';
 
@@ -94,7 +95,7 @@ export class ExportHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -125,7 +126,7 @@ const exportFormat = formatMap[params.format];
     const filePath = params.filePath || `~/Desktop/export.${params.format}`;
     const escPath = this.escape(filePath);
     const code = `
-      app.activeDocument.exportFile(${exportFormat}, File("${escPath}"), false${params.options ? ', ' + JSON.stringify(params.options) : ''});
+      __resolveDocument().exportFile(${exportFormat}, File("${escPath}"), false${params.options ? ', ' + JSON.stringify(params.options) : ''});
       JSON.stringify({ exportedTo: "${escPath}", format: "${params.format}" });
     `;
     const response = await this.executor.execute(code);
@@ -199,7 +200,7 @@ const exportFormat = formatMap[params.format];
     const params = preflightSchema.parse(args);
     const profileStr = params.profile ? `"${this.escape(params.profile)}"` : 'undefined';
     const code = `
-      var process = app.activeDocument.preflightProcesses.add(${profileStr});
+      var process = __resolveDocument().preflightProcesses.add(${profileStr});
       process.start();
       var result = { errors: process.errors, warnings: [], status: 'completed' };
       process.remove();
@@ -211,7 +212,7 @@ const exportFormat = formatMap[params.format];
 
   private async getSwatches(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var swatches = app.activeDocument.swatches;
+      var swatches = __resolveDocument().swatches;
       var result = [];
       for (var i = 0; i < swatches.length; i++) {
         var sw = swatches[i];
@@ -229,7 +230,7 @@ const exportFormat = formatMap[params.format];
 
   private async getFonts(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var fonts = app.activeDocument.fonts;
+      var fonts = __resolveDocument().fonts;
       var result = [];
       for (var i = 0; i < fonts.length; i++) {
         result.push({
@@ -246,7 +247,7 @@ const exportFormat = formatMap[params.format];
 
   private async getMasterSpreads(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var masters = app.activeDocument.masterSpreads;
+      var masters = __resolveDocument().masterSpreads;
       var result = [];
       for (var i = 0; i < masters.length; i++) {
         var m = masters[i];
@@ -263,7 +264,7 @@ const exportFormat = formatMap[params.format];
 
   private async getTables(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0).optional() }).parse(args as Record<string, unknown>);
-    const scope = params.pageIndex !== undefined ? `app.activeDocument.pages[${params.pageIndex}]` : 'app.activeDocument';
+    const scope = params.pageIndex !== undefined ? `__resolveDocument().pages[${params.pageIndex}]` : '__resolveDocument()';
     const code = `
       var tables = ${scope}.tables;
       var result = [];
@@ -283,7 +284,7 @@ const exportFormat = formatMap[params.format];
 
   private async getXmlTags(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var tags = app.activeDocument.xmlTags;
+      var tags = __resolveDocument().xmlTags;
       var result = [];
       for (var i = 0; i < tags.length; i++) {
         result.push({ name: tags[i].name, label: tags[i].label });

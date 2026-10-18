@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { ScriptExecutor } from './ScriptExecutor.js';
 import { wrapExtendScript } from './wrapExtendScript.js';
+import { getDocumentTarget } from './documentTarget.js';
 import { InDesignError } from '../utils/errorHandler.js';
 import type { BridgeResponse, BridgeStatus } from '../types/index.js';
 
@@ -76,7 +77,7 @@ export class ComScriptExecutor extends ScriptExecutor {
   async execute(code: string, timeout?: number, debug?: boolean): Promise<BridgeResponse> {
     const proc = this.ensureProcess();
 
-    const fullCode = [NEVER_INTERACT, wrapExtendScript(code, { debug, undoGroupActive: this.undoGroupActive })].join('\n');
+    const fullCode = [NEVER_INTERACT, wrapExtendScript(code, { debug, undoGroupActive: this.undoGroupActive, targetDocument: getDocumentTarget() })].join('\n');
     const id = uuidv4();
     const tempFile = join(tmpdir(), `indesign-nutria-mcp-${id}.jsx`);
     writeFileSync(tempFile, fullCode, 'utf-8');

@@ -3,6 +3,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 export class UndoHandler implements IHandler {
   public readonly name = 'undo';
@@ -50,7 +51,7 @@ export class UndoHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -62,7 +63,7 @@ export class UndoHandler implements IHandler {
     // honest check is to attempt it and report what happened.
     const code = `
       try {
-        app.activeDocument.undo();
+        __resolveDocument().undo();
         "undone";
       } catch (e) {
         "nothing to undo: " + (e.message || e);
@@ -75,7 +76,7 @@ export class UndoHandler implements IHandler {
   private async redo(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
       try {
-        app.activeDocument.redo();
+        __resolveDocument().redo();
         "redone";
       } catch (e) {
         "nothing to redo: " + (e.message || e);

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { BridgeRequest, BridgeResponse, BridgeStatus } from '../types/index.js';
 import { InDesignError } from '../utils/errorHandler.js';
 import { wrapExtendScript } from './wrapExtendScript.js';
+import { getDocumentTarget } from './documentTarget.js';
 import { acceptedTypesDescription, normalizeResponseType } from './protocol.js';
 
 export class ScriptExecutor extends EventEmitter {
@@ -44,6 +45,9 @@ export class ScriptExecutor extends EventEmitter {
     const fullCode = wrapExtendScript(code, {
       debug,
       undoGroupActive: this._undoGroupActive,
+      // Bound per request by registerTool(); null when the caller passed no
+      // document_id, in which case the script targets the front document.
+      targetDocument: getDocumentTarget(),
     });
     const id = uuidv4();
     const request: BridgeRequest = {

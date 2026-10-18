@@ -5,6 +5,7 @@ import { withLogging, withErrorHandling, compose } from '../utils/middleware.js'
 import { filePathError } from '../utils/security.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 /**
  * Recipes: compositions of atomic tools that were previously a chain of
@@ -107,7 +108,7 @@ export class RecipeHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -150,7 +151,7 @@ export class RecipeHandler implements IHandler {
     // reintroduce exactly the round-trips this exists to remove.
     const docExpr =
       params.documentIndex === undefined
-        ? 'app.activeDocument'
+        ? '__resolveDocument()'
         : `app.documents[${params.documentIndex}]`;
     const pathJson = JSON.stringify(params.filePath);
 
@@ -228,7 +229,7 @@ export class RecipeHandler implements IHandler {
   private exportPresetCode(params: z.infer<typeof exportPresetSchema>): string {
     const docExpr =
       params.documentIndex === undefined
-        ? 'app.activeDocument'
+        ? '__resolveDocument()'
         : `app.documents[${params.documentIndex}]`;
     const presetJson = JSON.stringify(params.presetName);
     const pathJson = JSON.stringify(params.filePath);

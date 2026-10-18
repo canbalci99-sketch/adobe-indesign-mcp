@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 import { filePathError } from '../utils/security.js';
 
@@ -64,7 +65,7 @@ export class ResourcesHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -74,7 +75,7 @@ export class ResourcesHandler implements IHandler {
 
   private async listLinks(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var links = app.activeDocument.links;
+      var links = __resolveDocument().links;
       var result = [];
       for (var i = 0; i < links.length; i++) {
         var l = links[i];
@@ -104,7 +105,7 @@ export class ResourcesHandler implements IHandler {
 
     const escPath = this.escape(params.newFilePath);
     const code = `
-      var link = app.activeDocument.links[${params.linkIndex}];
+      var link = __resolveDocument().links[${params.linkIndex}];
       if (!link.isValid) { throw new Error("Link not found"); }
       link.relink(File("${escPath}"));
       JSON.stringify({ name: link.name, status: link.status, filePath: link.filePath });
@@ -115,7 +116,7 @@ export class ResourcesHandler implements IHandler {
 
   private async updateAllLinks(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      app.activeDocument.links.everyItem().relink();
+      __resolveDocument().links.everyItem().relink();
       "all links updated";
     `;
     const response = await this.executor.execute(code);
@@ -125,7 +126,7 @@ export class ResourcesHandler implements IHandler {
   private async embedLink(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ linkIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var link = app.activeDocument.links[${params.linkIndex}];
+      var link = __resolveDocument().links[${params.linkIndex}];
       if (!link.isValid) { throw new Error("Link not found"); }
       link.embed();
       JSON.stringify({ name: link.name, embedded: true });
@@ -146,7 +147,7 @@ export class ResourcesHandler implements IHandler {
 
     const escPath = this.escape(params.filePath);
     const code = `
-      var link = app.activeDocument.links[${params.linkIndex}];
+      var link = __resolveDocument().links[${params.linkIndex}];
       if (!link.isValid) { throw new Error("Link not found"); }
       link.unembed(File("${escPath}"));
       JSON.stringify({ name: link.name, filePath: "${escPath}", embedded: false });
@@ -158,7 +159,7 @@ export class ResourcesHandler implements IHandler {
   private async getLinkInfo(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ linkIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var link = app.activeDocument.links[${params.linkIndex}];
+      var link = __resolveDocument().links[${params.linkIndex}];
       if (!link.isValid) { throw new Error("Link not found"); }
       JSON.stringify({
         name: link.name,

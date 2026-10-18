@@ -117,7 +117,7 @@ describe('TableHandler', () => {
       await tool.handler({}, {});
 
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument.tables');
+      expect(code).toContain('__resolveDocument().tables');
     });
 
     it('should return table list from executor', async () => {

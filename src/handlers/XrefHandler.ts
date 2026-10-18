@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class XrefHandler implements IHandler {
@@ -47,7 +48,7 @@ export class XrefHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -67,7 +68,7 @@ export class XrefHandler implements IHandler {
     const escFormat = this.escape(params.appliedFormat);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var xref = doc.crossReferenceSources.add();
       xref.name = "${escSource}";
       var fmt = doc.crossReferenceFormats.item("${escFormat}");
@@ -80,7 +81,7 @@ export class XrefHandler implements IHandler {
 
   private async list(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var result = [];
       for (var i = 0; i < doc.crossReferenceSources.length; i++) {
         var src = doc.crossReferenceSources[i];
@@ -106,7 +107,7 @@ export class XrefHandler implements IHandler {
     const escFormat = this.escape(params.appliedFormat);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var src = doc.crossReferenceSources[${params.index}];
       src.appliedFormat = doc.crossReferenceFormats.item("${escFormat}");
       JSON.stringify({ updated: true, index: ${params.index}, format: "${escFormat}" });

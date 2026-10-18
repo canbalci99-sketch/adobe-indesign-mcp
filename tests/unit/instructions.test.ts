@@ -25,6 +25,8 @@ const NON_TOOL_TOKENS = new Set([
   'execution_timeout',
   'missing_font',
   'link_missing',
+  // A parameter every tool accepts, not a tool — named in STATE BEFORE ACTION.
+  'document_id',
 ]);
 
 describe('INDESIGN_MCP_INSTRUCTIONS', () => {

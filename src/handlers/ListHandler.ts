@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class ListHandler implements IHandler {
@@ -79,7 +80,7 @@ export class ListHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -98,7 +99,7 @@ export class ListHandler implements IHandler {
     const listType = params.type === 'numbered' ? 'ListType.NUMBERED_LIST' : 'ListType.BULLET_LIST';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var list = doc.lists.add({name: "${escName}", listType: ${listType}});
       JSON.stringify({action: 'defineList', name: "${escName}", type: "${params.type}"});
     `;
@@ -118,7 +119,7 @@ export class ListHandler implements IHandler {
     const escName = this.escape(params.listName);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var paragraph = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       var list = doc.lists.item("${escName}");
       paragraph.appliedList = list;
@@ -138,7 +139,7 @@ export class ListHandler implements IHandler {
     const escName = this.escape(params.listName);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       if (app.selection.length === 0) { throw new Error("No active selection"); }
       var sel = app.selection[0];
       var list = doc.lists.item("${escName}");
@@ -162,7 +163,7 @@ export class ListHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var paragraph = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       paragraph.appliedList = NothingEnum.NOTHING;
       paragraph.listLevel = 1;
@@ -174,7 +175,7 @@ export class ListHandler implements IHandler {
 
   private async list(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var lists = doc.lists;
       var result = [];
       for (var i = 0; i < lists.length; i++) {
@@ -195,7 +196,7 @@ export class ListHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var paragraph = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       paragraph.numberingRestart = true;
       paragraph.numberingStartAt = ${params.startNumber};

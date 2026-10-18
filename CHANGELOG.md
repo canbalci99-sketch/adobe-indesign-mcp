@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **A per-call target document: `document_id`.** Every tool now takes an optional
+  `document_id` — a document name (as `document_listOpen` reports it) or a
+  0-based index — and acts on that document rather than the front tab. With more
+  than one document open the front tab is not reliably the intended target, and a
+  tool called against the wrong document edits the wrong file; the server
+  instructions could only warn about it. Passing no `document_id` is exactly the
+  old behaviour (the front document), so the change is additive.
+
+  `app.activeDocument` was written inline in 197 places across 32 handlers with no
+  shared resolver, so the target could not be honoured without first building one.
+  `__resolveDocument()` — injected with every script — is that resolver, and every
+  document-scoped handler now resolves through it. A target that is not open fails
+  loudly (`document_id 'X' is not open. Open documents: …`) instead of silently
+  editing the front document. The target is carried in `AsyncLocalStorage`, so a
+  call that awaits before dispatching cannot be hijacked by a concurrent one, and
+  a hostile `document_id` is embedded as a JSON string literal and matched by
+  name — there is no path by which it becomes executable.
+
+### Changed
+- The server instructions (`STATE BEFORE ACTION`) now describe `document_id`
+  instead of telling the host to ask which document is meant, and the shipped
+  `indesign-mcp-layout` skill points at it in place of the "tools act on
+  `app.activeDocument`" warning.
+
 ## [1.4.3] - 2026-10-18
 
 ### Added
@@ -319,6 +346,7 @@ Merges the fixes contributed through the forks, plus regression tests for each.
 - Custom timeout/maxResults limits for large documents
 - MCP resources: `mcp://tools/inventory` for agent auto-discovery
 
+[Unreleased]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.3...HEAD
 [1.4.3]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/nutriandrea/adobe-indesign-mcp/compare/v1.4.0...v1.4.1

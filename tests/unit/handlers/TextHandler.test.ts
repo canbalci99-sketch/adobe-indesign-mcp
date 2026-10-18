@@ -196,7 +196,7 @@ describe('TextHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument.stories');
+      expect(code).toContain('__resolveDocument().stories');
       expect(code).toContain('stories[i].contents.replace(/[\\ufeff\\u0004]/g, \'\').substring(0, 200)');
       expect(result.content[0]).toHaveProperty('type', 'text');
     });

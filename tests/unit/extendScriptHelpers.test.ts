@@ -125,4 +125,27 @@ describe('extendScriptHelpers', () => {
     expect(EXTENDSCRIPT_HELPERS).not.toContain('require(');
     expect(EXTENDSCRIPT_HELPERS).not.toContain('export ');
   });
+
+  it('should define the target-document resolver and its error path', async () => {
+    const { EXTENDSCRIPT_HELPERS } = await import(
+      '../../src/bridge/extendScriptHelpers.js'
+    );
+    // The resolver reads the global wrapExtendScript injects and falls back to
+    // the front document when it is null — this is what every document-scoped
+    // handler now calls instead of app.activeDocument.
+    expect(EXTENDSCRIPT_HELPERS).toContain('function __resolveDocument');
+    expect(EXTENDSCRIPT_HELPERS).toContain('__TARGET_DOCUMENT_ID');
+    expect(EXTENDSCRIPT_HELPERS).toContain('function __findDocument');
+    expect(EXTENDSCRIPT_HELPERS).toContain('function __openDocumentNames');
+    expect(EXTENDSCRIPT_HELPERS).toContain('is not open. Open documents:');
+  });
+
+  it('should not use const or let anywhere in the helpers', async () => {
+    const { EXTENDSCRIPT_HELPERS } = await import(
+      '../../src/bridge/extendScriptHelpers.js'
+    );
+    // The resolver runs inside ExtendScript's ES3-era engine: `const`/`let`
+    // are parse errors there, so the helper must be written with `var`.
+    expect(EXTENDSCRIPT_HELPERS).not.toMatch(/\b(const|let)\s/);
+  });
 });

@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 import { filePathError } from '../utils/security.js';
 
@@ -62,7 +63,7 @@ export class DataMergeHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -85,7 +86,7 @@ export class DataMergeHandler implements IHandler {
     }
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var dm = doc.dataMergeProperties;
       dm.selectDataSource(File("${escPath}"));
       JSON.stringify({ success: true, filePath: "${escPath}" });
@@ -98,7 +99,7 @@ export class DataMergeHandler implements IHandler {
     z.object({}).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var dm = doc.dataMergeProperties;
       var fields = dm.dataMergeFields;
       var result = [];
@@ -120,7 +121,7 @@ export class DataMergeHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var dm = doc.dataMergeProperties;
       dm.dataMergePreferences.recordsPerPage = ${params.recordsPerPage};
       dm.dataMergePreferences.linkImages = ${params.linkImages};
@@ -158,7 +159,7 @@ export class DataMergeHandler implements IHandler {
       : `doc.exportFile(${formatMap[params.format]}, File("${escPath}"), false);`;
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       ${exportExpr}
       JSON.stringify({ success: true, format: "${params.format}", outputPath: "${escPath}" });
     `;
@@ -170,7 +171,7 @@ export class DataMergeHandler implements IHandler {
     z.object({}).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       doc.dataMergeProperties.removeDataSource();
       JSON.stringify({ success: true });
     `;

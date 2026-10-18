@@ -105,6 +105,16 @@ describe('classifyError', () => {
     );
   });
 
+  it('classifies a document_id that is not open as a missing document', () => {
+    // The resolver's own error, as it arrives prefixed by the bridge. Without a
+    // rule it falls through to extendscript_runtime_error and the host is sent
+    // to document_getInfo for a document that is simply not open.
+    const message =
+      "Uncaught JavaScript exception: document_id 'Gone.indd' is not open. Open documents: A.indd, B.indd";
+    expect(classifyError(message, 'BRIDGE_ERROR')).toBe('document_not_found');
+    expect(suggestedToolFor(message, 'BRIDGE_ERROR')).toBe('document_listOpen');
+  });
+
   it('keeps the generic code when the message matches no rule', () => {
     expect(classifyError('Unknown bridge error', 'BRIDGE_ERROR')).toBe('bridge_error');
     expect(classifyError('whatever', 'EXTENDSCRIPT_RUNTIME_ERROR')).toBe('extendscript_runtime_error');

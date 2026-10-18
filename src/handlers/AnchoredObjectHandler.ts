@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class AnchoredObjectHandler implements IHandler {
@@ -102,7 +103,7 @@ export class AnchoredObjectHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -125,7 +126,7 @@ export class AnchoredObjectHandler implements IHandler {
     const contentType = params.contentType;
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var ip = doc.stories[${params.storyIndex}].insertionPoints[${params.insertionIndex}];
       var newItem;
       // InDesign 2026 removed the ability to re-anchor via move(): passing an
@@ -188,7 +189,7 @@ export class AnchoredObjectHandler implements IHandler {
     }
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       var aos = item.anchoredObjectSettings;
 ${assignments.join('\n')}
@@ -209,7 +210,7 @@ ${assignments.join('\n')}
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.anchoredObjectSettings.anchoredPosition = AnchorPosition.INLINE_POSITION;
       item.move(LocationOptions.AT_END, doc.pages[${params.pageIndex}]);
@@ -230,7 +231,7 @@ ${assignments.join('\n')}
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       var aos = item.anchoredObjectSettings;
       JSON.stringify({
@@ -266,7 +267,7 @@ ${assignments.join('\n')}
     }).join('\n');
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       var aos = item.anchoredObjectSettings;
 ${propAssignments}

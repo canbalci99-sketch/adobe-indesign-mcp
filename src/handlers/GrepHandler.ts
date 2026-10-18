@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class GrepHandler implements IHandler {
@@ -78,7 +79,7 @@ export class GrepHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -101,7 +102,7 @@ export class GrepHandler implements IHandler {
       app.findGrepPreferences.findWhat = "${escFind}";
       app.findGrepPreferences.includeFootnotes = ${params.includeFootnotes};
       app.findGrepPreferences.includeMasterPages = ${params.includeMasterPages};
-      var found = app.activeDocument.findGrep();
+      var found = __resolveDocument().findGrep();
       var result = [];
       var limit = Math.min(found.length, 100);
       for (var i = 0; i < limit; i++) {
@@ -133,7 +134,7 @@ export class GrepHandler implements IHandler {
       app.changeGrepPreferences = NothingEnum.nothing;
       app.findGrepPreferences.findWhat = "${escFind}";
       app.changeGrepPreferences.changeTo = "${escReplace}";
-      var changed = app.activeDocument.changeGrep();
+      var changed = __resolveDocument().changeGrep();
       app.findGrepPreferences = NothingEnum.nothing;
       app.changeGrepPreferences = NothingEnum.nothing;
       JSON.stringify({ occurrencesChanged: changed.length });
@@ -174,7 +175,7 @@ export class GrepHandler implements IHandler {
       app.findTextPreferences = NothingEnum.nothing;
       app.findTextPreferences.findWhat = "${escFind}";
       ${formatLines}
-      var found = app.activeDocument.findText();
+      var found = __resolveDocument().findText();
       var result = [];
       var limit = Math.min(found.length, 100);
       for (var i = 0; i < limit; i++) {
@@ -224,7 +225,7 @@ export class GrepHandler implements IHandler {
       app.findTextPreferences.findWhat = "${escFind}";
       app.changeTextPreferences.changeTo = "${escReplace}";
       ${formatLines}
-      var changed = app.activeDocument.changeText();
+      var changed = __resolveDocument().changeText();
       app.findTextPreferences = NothingEnum.nothing;
       app.changeTextPreferences = NothingEnum.nothing;
       JSON.stringify({ occurrencesChanged: changed.length });

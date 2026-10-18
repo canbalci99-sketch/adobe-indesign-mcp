@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class TextAdvancedHandler implements IHandler {
@@ -275,7 +276,7 @@ export class TextAdvancedHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -293,7 +294,7 @@ export class TextAdvancedHandler implements IHandler {
       : "r.contents.replace(/[\\ufeff\\u0004]/g, '')";
 
     const code = `
-      var story = app.activeDocument.stories[${params.storyIndex}];
+      var story = __resolveDocument().stories[${params.storyIndex}];
       var para = story.paragraphs[${params.paragraphIndex}];
       var paraStart = para.characters[0].index;
       var ranges = para.textStyleRanges;
@@ -336,11 +337,11 @@ export class TextAdvancedHandler implements IHandler {
     const escStyle = this.escape(params.styleName);
 
     const code = `
-      var story = app.activeDocument.stories[${params.storyIndex}];
+      var story = __resolveDocument().stories[${params.storyIndex}];
       var para = story.paragraphs[${params.paragraphIndex}];
       var paraStart = para.characters[0].index;
       var range = story.characters.itemByRange(paraStart + ${params.startChar}, paraStart + ${params.endChar} - 1);
-      range.appliedCharacterStyle = app.activeDocument.characterStyles.item("${escStyle}");
+      range.appliedCharacterStyle = __resolveDocument().characterStyles.item("${escStyle}");
       JSON.stringify({ applied: true, style: "${escStyle}", start: ${params.startChar}, end: ${params.endChar} });
     `;
     const response = await this.executor.execute(code);
@@ -364,7 +365,7 @@ export class TextAdvancedHandler implements IHandler {
     if (params.pointSize) props += `\nrange.pointSize = ${params.pointSize};`;
 
     const code = `
-      var story = app.activeDocument.stories[${params.storyIndex}];
+      var story = __resolveDocument().stories[${params.storyIndex}];
       var para = story.paragraphs[${params.paragraphIndex}];
       var paraStart = para.characters[0].index;
       var range = story.characters.itemByRange(paraStart + ${params.startChar}, paraStart + ${params.endChar} - 1);
@@ -390,7 +391,7 @@ export class TextAdvancedHandler implements IHandler {
     const code = `
       app.findGrepPreferences = NothingEnum.nothing;
       app.findGrepPreferences.findWhat = "${escPattern}";
-      var found = app.activeDocument.stories[${params.storyIndex}].findGrep();
+      var found = __resolveDocument().stories[${params.storyIndex}].findGrep();
       var result = [];
       var limit = Math.min(found.length, ${params.maxResults});
       for (var i = 0; i < limit; i++) {
@@ -431,7 +432,7 @@ export class TextAdvancedHandler implements IHandler {
       app.findTextPreferences = NothingEnum.nothing;
       app.findTextPreferences.findWhat = "";
       ${findPrefs}
-      var found = app.activeDocument.stories[${params.storyIndex}].findText();
+      var found = __resolveDocument().stories[${params.storyIndex}].findText();
       var result = [];
       var limit = Math.min(found.length, ${params.maxResults});
       for (var i = 0; i < limit; i++) {
@@ -466,7 +467,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var srcFrame = doc.pages[${params.sourcePageIndex}].textFrames[${params.sourceFrameIndex}];
       var tgtFrame = doc.pages[${params.targetPageIndex}].textFrames[${params.targetFrameIndex}];
       srcFrame.nextTextFrame = tgtFrame;
@@ -483,7 +484,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.nextTextFrame = null;
       JSON.stringify({ unlinked: true, frame: ${params.frameIndex} });
@@ -501,7 +502,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.textColumnCount = ${params.count};
       tf.textFramePreferences.textColumnGutter = ${params.gutter};
@@ -536,7 +537,7 @@ export class TextAdvancedHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.textWrapPreferences.textWrapMode = ${modeMap[params.mode]};
       item.textWrapPreferences.textWrapSide = ${sideMap[params.side]};
@@ -560,7 +561,7 @@ export class TextAdvancedHandler implements IHandler {
     const escCharStyle = params.characterStyle ? this.escape(params.characterStyle) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       para.dropCapCharacters = ${params.characters};
       para.dropCapLines = ${params.lines};
@@ -591,7 +592,7 @@ export class TextAdvancedHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex ?? 0}];
       para.keepLinesTogether = true;
       para.keepWithNext = ${params.keepWithNext};
@@ -615,7 +616,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.insetSpacing = [${params.top}, ${params.left}, ${params.bottom}, ${params.right}];
       JSON.stringify({ insetSpacing: [${params.top}, ${params.left}, ${params.bottom}, ${params.right}] });
@@ -652,7 +653,7 @@ export class TextAdvancedHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.autoSizingType = ${autoSizeMap[params.autoSizingType]};
       ${params.referencePoint ? `tf.textFramePreferences.autoSizingReferencePoint = ${refPointMap[params.referencePoint]};` : ''}
@@ -677,7 +678,7 @@ export class TextAdvancedHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.verticalJustification = ${justMap[params.justification]};
       JSON.stringify({ justification: "${params.justification}" });
@@ -706,7 +707,7 @@ export class TextAdvancedHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.firstBaselineOffset = ${baselineMap[params.offsetType]};
       ${params.minOffset !== undefined ? `tf.textFramePreferences.minimumFirstBaseline = ${params.minOffset};` : ''}
@@ -724,7 +725,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tf = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}];
       tf.textFramePreferences.ignoreWrap = ${params.ignoreWrap};
       JSON.stringify({ ignoreWrap: ${params.ignoreWrap} });
@@ -757,7 +758,7 @@ export class TextAdvancedHandler implements IHandler {
     const escColor = this.escape(params.ruleColor);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       para.ruleAbove = ${params.ruleOn};
       para.ruleAboveWeight = ${params.ruleWeight};
@@ -797,7 +798,7 @@ export class TextAdvancedHandler implements IHandler {
     const escColor = this.escape(params.ruleColor);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       para.ruleBelow = ${params.ruleOn};
       para.ruleBelowWeight = ${params.ruleWeight};
@@ -840,7 +841,7 @@ export class TextAdvancedHandler implements IHandler {
     ).join(',');
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       para.tabList = [${tabsCode}];
       JSON.stringify({ tabCount: ${params.tabStops.length} });
@@ -862,7 +863,7 @@ export class TextAdvancedHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var para = doc.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}];
       para.hyphenation = ${params.hyphenation};
       ${params.wordSpacing !== undefined ? `para.desiredWordSpacing = ${params.wordSpacing};` : ''}

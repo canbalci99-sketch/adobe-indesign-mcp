@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class MasterHandler implements IHandler {
@@ -63,7 +64,7 @@ export class MasterHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -75,7 +76,7 @@ export class MasterHandler implements IHandler {
     const params = z.object({ name: z.string(), pageCount: z.number().int().min(1).max(10).default(1) }).parse(args as Record<string, unknown>);
     const escName = this.escape(params.name);
     const code = `
-      var master = app.activeDocument.masterSpreads.add();
+      var master = __resolveDocument().masterSpreads.add();
       master.name = "${escName}";
       JSON.stringify({ name: master.name, pageCount: master.pages.length });
     `;
@@ -88,7 +89,7 @@ export class MasterHandler implements IHandler {
     const escName = this.escape(params.name);
     const escNew = this.escape(params.newName);
     const code = `
-      var src = app.activeDocument.masterSpreads.item("${escName}");
+      var src = __resolveDocument().masterSpreads.item("${escName}");
       if (!src.isValid) { throw new Error("Master spread '${escName}' not found"); }
       var dup = src.duplicate();
       dup.name = "${escNew}";
@@ -102,9 +103,9 @@ export class MasterHandler implements IHandler {
     const params = z.object({ pageIndex: z.number().int().min(0), masterName: z.string() }).parse(args as Record<string, unknown>);
     const escName = this.escape(params.masterName);
     const code = `
-      var master = app.activeDocument.masterSpreads.item("${escName}");
+      var master = __resolveDocument().masterSpreads.item("${escName}");
       if (!master.isValid) { throw new Error("Master spread '${escName}' not found"); }
-      app.activeDocument.pages[${params.pageIndex}].appliedMaster = master;
+      __resolveDocument().pages[${params.pageIndex}].appliedMaster = master;
       "applied";
     `;
     const response = await this.executor.execute(code);
@@ -115,7 +116,7 @@ export class MasterHandler implements IHandler {
     const params = z.object({ name: z.string() }).parse(args as Record<string, unknown>);
     const escName = this.escape(params.name);
     const code = `
-      var master = app.activeDocument.masterSpreads.item("${escName}");
+      var master = __resolveDocument().masterSpreads.item("${escName}");
       if (!master.isValid) { throw new Error("Master spread '${escName}' not found"); }
       master.remove();
       "deleted";
@@ -126,7 +127,7 @@ export class MasterHandler implements IHandler {
 
   private async list(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var masters = app.activeDocument.masterSpreads;
+      var masters = __resolveDocument().masterSpreads;
       var result = [];
       for (var i = 0; i < masters.length; i++) {
         var m = masters[i];
@@ -142,7 +143,7 @@ export class MasterHandler implements IHandler {
     const params = z.object({ name: z.string() }).parse(args as Record<string, unknown>);
     const escName = this.escape(params.name);
     const code = `
-      var master = app.activeDocument.masterSpreads.item("${escName}");
+      var master = __resolveDocument().masterSpreads.item("${escName}");
       if (!master.isValid) { throw new Error("Master spread '${escName}' not found"); }
       var result = [];
       for (var i = 0; i < master.pages.length; i++) {

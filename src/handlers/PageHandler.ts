@@ -5,6 +5,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 export class PageHandler implements IHandler {
   public readonly name = 'page';
@@ -63,14 +64,14 @@ export class PageHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
   private async add(args: unknown, _extra: any): Promise<ToolResult> {
     const params = addPageSchema.parse(args);
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var refPage = ${params.referencePage !== undefined ? `doc.pages[${params.referencePage}]` : 'undefined'};
       var pos = LocationOptions.${params.position};
       var page = doc.pages.add(pos, refPage);
@@ -82,7 +83,7 @@ export class PageHandler implements IHandler {
 
   private async delete(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ index: z.number().int().min(0) }).parse(args);
-    const code = `app.activeDocument.pages[${params.index}].remove(); "deleted"`;
+    const code = `__resolveDocument().pages[${params.index}].remove(); "deleted"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -90,7 +91,7 @@ export class PageHandler implements IHandler {
   private async duplicate(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ index: z.number().int().min(0) }).parse(args);
     const code = `
-      var page = app.activeDocument.pages[${params.index}].duplicate();
+      var page = __resolveDocument().pages[${params.index}].duplicate();
       JSON.stringify({ index: page.documentOffset, name: page.name });
     `;
     const response = await this.executor.execute(code);
@@ -99,7 +100,7 @@ export class PageHandler implements IHandler {
 
   private async move(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ index: z.number().int().min(0), toIndex: z.number().int().min(0) }).parse(args);
-    const code = `app.activeDocument.pages[${params.index}].move(LocationOptions.atBeginning, app.activeDocument.pages[${params.toIndex}]); "moved"`;
+    const code = `__resolveDocument().pages[${params.index}].move(LocationOptions.atBeginning, __resolveDocument().pages[${params.toIndex}]); "moved"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -107,7 +108,7 @@ export class PageHandler implements IHandler {
   private async getInfo(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ index: z.number().int().min(0) }).parse(args);
     const code = `
-      var page = app.activeDocument.pages[${params.index}];
+      var page = __resolveDocument().pages[${params.index}];
       JSON.stringify({
         index: page.documentOffset,
         name: page.name,
@@ -123,7 +124,7 @@ export class PageHandler implements IHandler {
 
   private async listAll(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var pages = app.activeDocument.pages;
+      var pages = __resolveDocument().pages;
       var result = [];
       for (var i = 0; i < pages.length; i++) {
         result.push({
@@ -142,8 +143,8 @@ export class PageHandler implements IHandler {
   private async applyMaster(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0), masterName: z.string() }).parse(args);
     const code = `
-      var master = app.activeDocument.masterSpreads.item("${params.masterName.replace(/"/g, '\\"')}");
-      app.activeDocument.pages[${params.pageIndex}].appliedMaster = master;
+      var master = __resolveDocument().masterSpreads.item("${params.masterName.replace(/"/g, '\\"')}");
+      __resolveDocument().pages[${params.pageIndex}].appliedMaster = master;
       "applied";
     `;
     const response = await this.executor.execute(code);

@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class IndexHandler implements IHandler {
@@ -59,7 +60,7 @@ export class IndexHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -86,7 +87,7 @@ export class IndexHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var idx;
       if (doc.indexes.length > 0) { idx = doc.indexes[0]; }
       else { idx = doc.indexes.add(); }
@@ -121,7 +122,7 @@ export class IndexHandler implements IHandler {
       : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       if (doc.indexes.length === 0) { JSON.stringify({ error: "No index exists" }); }
       else {
         var page = doc.pages[${params.pageIndex}];
@@ -138,7 +139,7 @@ export class IndexHandler implements IHandler {
 
   private async listTopics(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       if (doc.indexes.length === 0) { JSON.stringify([]); }
       else {
         var idx = doc.indexes[0];
@@ -168,7 +169,7 @@ export class IndexHandler implements IHandler {
     const fullName = params.parent ? `${this.escape(params.parent)}:${escName}` : escName;
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var idx;
       if (doc.indexes.length > 0) { idx = doc.indexes[0]; }
       else { idx = doc.indexes.add(); }

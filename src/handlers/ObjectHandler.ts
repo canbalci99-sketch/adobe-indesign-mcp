@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class ObjectHandler implements IHandler {
@@ -68,7 +69,7 @@ export class ObjectHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -80,7 +81,7 @@ export class ObjectHandler implements IHandler {
   private async listImages(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var page = app.activeDocument.pages[${params.pageIndex}];
+      var page = __resolveDocument().pages[${params.pageIndex}];
       var allImages = page.allGraphics;
       var result = [];
       for (var i = 0; i < allImages.length; i++) {
@@ -101,7 +102,7 @@ export class ObjectHandler implements IHandler {
 
   private async getImageLinks(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var allLinks = app.activeDocument.links;
+      var allLinks = __resolveDocument().links;
       var result = [];
       for (var i = 0; i < allLinks.length; i++) {
         result.push({
@@ -134,10 +135,10 @@ export class ObjectHandler implements IHandler {
       polygon: 'polygons.add()',
       line: 'graphicLines.add()',
     };
-    const fillStr = params.fillColor ? `shape.fillColor = app.activeDocument.colors.item("${this.escape(params.fillColor)}");` : '';
-    const strokeStr = params.strokeColor ? `shape.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");` : '';
+    const fillStr = params.fillColor ? `shape.fillColor = __resolveDocument().colors.item("${this.escape(params.fillColor)}");` : '';
+    const strokeStr = params.strokeColor ? `shape.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");` : '';
     const code = `
-      var shape = app.activeDocument.pages[${params.pageIndex}].${shapeMap[params.type]};
+      var shape = __resolveDocument().pages[${params.pageIndex}].${shapeMap[params.type]};
       shape.geometricBounds = [${top}, ${left}, ${bottom}, ${right}];
       shape.strokeWeight = ${params.strokeWeight};
       ${fillStr}
@@ -151,7 +152,7 @@ export class ObjectHandler implements IHandler {
   private async listShapes(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var page = app.activeDocument.pages[${params.pageIndex}];
+      var page = __resolveDocument().pages[${params.pageIndex}];
       var result = [];
       var items = page.allPageItems;
       for (var i = 0; i < items.length; i++) {
@@ -180,7 +181,7 @@ export class ObjectHandler implements IHandler {
   private async listGroups(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var page = app.activeDocument.pages[${params.pageIndex}];
+      var page = __resolveDocument().pages[${params.pageIndex}];
       var result = [];
       for (var i = 0; i < page.groups.length; i++) {
         result.push({
@@ -197,7 +198,7 @@ export class ObjectHandler implements IHandler {
 
   private async ungroup(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ pageIndex: z.number().int().min(0), groupIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
-    const code = `app.activeDocument.pages[${params.pageIndex}].groups[${params.groupIndex}].ungroup(); "ungrouped"`;
+    const code = `__resolveDocument().pages[${params.pageIndex}].groups[${params.groupIndex}].ungroup(); "ungrouped"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }

@@ -60,7 +60,7 @@ describe('ResourcesHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument.links');
+      expect(code).toContain('__resolveDocument().links');
       expect(code).toContain('l.name');
       expect(code).toContain('l.filePath');
       expect(code).toContain('l.status');

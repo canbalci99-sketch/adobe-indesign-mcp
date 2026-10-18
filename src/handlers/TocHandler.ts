@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class TocHandler implements IHandler {
@@ -63,7 +64,7 @@ export class TocHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -91,7 +92,7 @@ export class TocHandler implements IHandler {
     const incStyles = params.includeParagraphStyles ? params.includeParagraphStyles.map((s: string) => `"${this.escape(s)}"`).join(', ') : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tocStyle;
       try { tocStyle = doc.tocStyles.item("${escName}"); } catch(e) {}
       if (!tocStyle.isValid) { tocStyle = doc.tocStyles.add(); }
@@ -124,7 +125,7 @@ export class TocHandler implements IHandler {
       : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var tocStyle = doc.tocStyles.item("${escStyle}");
       var page = doc.pages[${params.pageIndex}];
       var tf = page.textFrames.add();
@@ -140,7 +141,7 @@ export class TocHandler implements IHandler {
 
   private async listStyles(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var result = [];
       for (var i = 0; i < doc.tocStyles.length; i++) {
         var s = doc.tocStyles[i];
@@ -172,7 +173,7 @@ export class TocHandler implements IHandler {
     const escStyle = params.styleName ? this.escape(params.styleName) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var story = doc.stories[${params.storyIndex}];
       var tf = story.textContainers[0];
       var tocStyle = ${params.styleName ? `doc.tocStyles.item("${escStyle}")` : 'doc.tocStyles[0]'};

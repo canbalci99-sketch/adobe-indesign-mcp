@@ -4,6 +4,7 @@ import { withLogging, withErrorHandling, compose } from '../utils/middleware.js'
 import { isSuccessEnvelopeEnabled, wrapSuccess } from '../errors/envelope.js';
 import type { ChangeTracker } from '../core/ChangeTracker.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 const statusParams = z.object({
   since: z.number().optional(),
@@ -16,7 +17,7 @@ export class ChangesHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 

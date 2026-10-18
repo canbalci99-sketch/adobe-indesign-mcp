@@ -100,6 +100,16 @@ const RULES: readonly Rule[] = [
     code: 'document_not_found',
     suggested_next_tool: 'document_listOpen',
   },
+  // A `document_id` naming a document that is not open — the resolver's own
+  // error. Without this rule the message falls through to the generic
+  // ExtendScript class and the host is told to re-read the document it just
+  // failed to reach; the open documents are already in the message, and the
+  // hint says how to re-derive a valid id.
+  {
+    pattern: /document_id .+ is not open/i,
+    code: 'document_not_found',
+    suggested_next_tool: 'document_listOpen',
+  },
   {
     pattern: /page (?:not found|index out of range)|invalid page/i,
     code: 'page_not_found',

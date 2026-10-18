@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class LayerHandler implements IHandler {
@@ -67,7 +68,7 @@ export class LayerHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -86,7 +87,7 @@ export class LayerHandler implements IHandler {
 
     const escName = this.escape(params.name);
     const code = `
-      var layer = app.activeDocument.layers.add({name: "${escName}"});
+      var layer = __resolveDocument().layers.add({name: "${escName}"});
       layer.visible = ${params.visible};
       layer.locked = ${params.locked};
       layer.printable = ${params.printable};
@@ -98,7 +99,7 @@ export class LayerHandler implements IHandler {
 
   private async listLayers(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var layers = app.activeDocument.layers;
+      var layers = __resolveDocument().layers;
       var result = [];
       for (var i = 0; i < layers.length; i++) {
         result.push({
@@ -122,7 +123,7 @@ export class LayerHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var target = doc.layers[${params.newIndex}];
       doc.layers[${params.layerIndex}].move(LocationOptions.AT_BEFORE, target);
       JSON.stringify({ layerIndex: ${params.layerIndex}, newIndex: ${params.newIndex} });
@@ -145,7 +146,7 @@ export class LayerHandler implements IHandler {
     if (params.printable !== undefined) setStr += `layer.printable = ${params.printable};\n`;
 
     const code = `
-      var layer = app.activeDocument.layers[${params.layerIndex}];
+      var layer = __resolveDocument().layers[${params.layerIndex}];
       if (!layer) { throw new Error("Layer not found"); }
       ${setStr}
       JSON.stringify({ index: ${params.layerIndex}, visible: layer.visible, locked: layer.locked });
@@ -160,7 +161,7 @@ export class LayerHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var layer = app.activeDocument.layers[${params.layerIndex}];
+      var layer = __resolveDocument().layers[${params.layerIndex}];
       if (!layer) { throw new Error("Layer not found"); }
       layer.remove();
       "deleted";

@@ -100,4 +100,98 @@ describe('wrapExtendScript', () => {
       expect(script).not.toContain('app.doScript(');
     });
   });
+
+  describe('document target', () => {
+    interface FakeDoc {
+      name: string;
+    }
+    interface FakeApp {
+      documents: FakeDoc[];
+      activeDocument: FakeDoc | null;
+    }
+
+    /**
+     * Runs the real generated bundle against a fake `app` and returns what
+     * `__resolveDocument()` yields — no mock of the resolver itself, so this
+     * exercises the same code InDesign would.
+     */
+    function resolve(app: FakeApp, options: { targetDocument?: string | number | null } = {}) {
+      const bundle = wrapExtendScript('', options);
+      const fn = new Function('app', `${bundle}\nreturn __resolveDocument();`) as (
+        app: FakeApp,
+      ) => FakeDoc | null;
+      return fn(app);
+    }
+
+    const app = (): FakeApp => ({
+      documents: [{ name: 'A.indd' }, { name: 'B.indd' }],
+      activeDocument: { name: 'A.indd' },
+    });
+
+    it('injects a null target by default', () => {
+      expect(wrapExtendScript('app.documents.length;')).toContain(
+        'var __TARGET_DOCUMENT_ID = null;',
+      );
+    });
+
+    it('injects a string target as a JSON literal', () => {
+      expect(wrapExtendScript('x;', { targetDocument: 'B.indd' })).toContain(
+        'var __TARGET_DOCUMENT_ID = "B.indd";',
+      );
+    });
+
+    it('injects a numeric target as a bare index', () => {
+      expect(wrapExtendScript('x;', { targetDocument: 1 })).toContain(
+        'var __TARGET_DOCUMENT_ID = 1;',
+      );
+    });
+
+    it('resolves the front document when no target is set', () => {
+      const fake = app();
+      expect(resolve(fake)).toBe(fake.activeDocument);
+    });
+
+    it('resolves a document by name', () => {
+      const fake = app();
+      expect(resolve(fake, { targetDocument: 'B.indd' })).toBe(fake.documents[1]);
+    });
+
+    it('resolves a document by index', () => {
+      const fake = app();
+      expect(resolve(fake, { targetDocument: 0 })).toBe(fake.documents[0]);
+    });
+
+    it('throws, naming the open documents, when the target is not open', () => {
+      expect(() => resolve(app(), { targetDocument: 'Gone.indd' })).toThrow(
+        /document_id 'Gone\.indd' is not open\. Open documents: A\.indd, B\.indd/,
+      );
+    });
+
+    it('throws on an out-of-range index', () => {
+      expect(() => resolve(app(), { targetDocument: 5 })).toThrow(/is not open/);
+    });
+
+    it('reports no open documents when there are none', () => {
+      expect(() =>
+        resolve({ documents: [], activeDocument: null }, { targetDocument: 'X.indd' }),
+      ).toThrow(/Open documents: \(none\)/);
+    });
+
+    it('treats a hostile target as a plain name, never as code', () => {
+      // A document_id is embedded as a JSON string literal and then matched by
+      // name. There is no path by which it becomes executable: a payload that
+      // would run from an unescaped literal must leave no trace.
+      const probe = '__indesign_target_injection_probe__';
+      const hostile = `'; globalThis.${probe} = true; //`;
+      expect(() => resolve(app(), { targetDocument: hostile })).toThrow(/is not open/);
+      expect((globalThis as Record<string, unknown>)[probe]).toBeUndefined();
+    });
+
+    it('escapes a target containing quotes and newlines', () => {
+      const weird = 'a"b\nc.indd';
+      const script = wrapExtendScript('x;', { targetDocument: weird });
+      expect(() => new Function(script)).not.toThrow();
+      expect(() => resolve(app(), { targetDocument: weird })).toThrow(/is not open/);
+    });
+  });
 });

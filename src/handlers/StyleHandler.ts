@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class StyleHandler implements IHandler {
@@ -89,7 +90,7 @@ export class StyleHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -99,7 +100,7 @@ export class StyleHandler implements IHandler {
 
   private async listParagraph(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var styles = app.activeDocument.paragraphStyles;
+      var styles = __resolveDocument().paragraphStyles;
       var result = [];
       for (var i = 0; i < styles.length; i++) {
         // basedOn THROWS on the root style ("Invalid request on a root style")
@@ -122,7 +123,7 @@ export class StyleHandler implements IHandler {
 
   private async listCharacter(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var styles = app.activeDocument.characterStyles;
+      var styles = __resolveDocument().characterStyles;
       var result = [];
       for (var i = 0; i < styles.length; i++) {
         var bo = null;
@@ -144,7 +145,7 @@ export class StyleHandler implements IHandler {
 
   private async listObject(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var styles = app.activeDocument.objectStyles;
+      var styles = __resolveDocument().objectStyles;
       var result = [];
       for (var i = 0; i < styles.length; i++) {
         var bo = null;
@@ -177,7 +178,7 @@ export class StyleHandler implements IHandler {
     const escName = this.escape(params.name);
     const props: string[] = [`name: "${escName}"`];
     if (params.basedOn) {
-      props.push(`basedOn: app.activeDocument.paragraphStyles.item("${this.escape(params.basedOn)}")`);
+      props.push(`basedOn: __resolveDocument().paragraphStyles.item("${this.escape(params.basedOn)}")`);
     }
     if (params.pointSize !== undefined) props.push(`pointSize: ${params.pointSize}`);
     if (params.fontFamily !== undefined) props.push(`appliedFont: "${this.escape(params.fontFamily)}"`);
@@ -193,7 +194,7 @@ export class StyleHandler implements IHandler {
         props.push(`${key}: ${JSON.stringify(value)}`);
       }
     }
-    const code = `app.activeDocument.paragraphStyles.add({${props.join(', ')}}); "created"`;
+    const code = `__resolveDocument().paragraphStyles.add({${props.join(', ')}}); "created"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -211,7 +212,7 @@ export class StyleHandler implements IHandler {
     const escName = this.escape(params.name);
     const props: string[] = [`name: "${escName}"`];
     if (params.basedOn) {
-      props.push(`basedOn: app.activeDocument.characterStyles.item("${this.escape(params.basedOn)}")`);
+      props.push(`basedOn: __resolveDocument().characterStyles.item("${this.escape(params.basedOn)}")`);
     }
     if (params.pointSize !== undefined) props.push(`pointSize: ${params.pointSize}`);
     if (params.fontFamily !== undefined) props.push(`appliedFont: "${this.escape(params.fontFamily)}"`);
@@ -223,7 +224,7 @@ export class StyleHandler implements IHandler {
         props.push(`${key}: ${JSON.stringify(value)}`);
       }
     }
-    const code = `app.activeDocument.characterStyles.add({${props.join(', ')}}); "created"`;
+    const code = `__resolveDocument().characterStyles.add({${props.join(', ')}}); "created"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -234,7 +235,7 @@ export class StyleHandler implements IHandler {
     const escNew = this.escape(params.newName);
     const styleCollection = params.type === 'paragraph' ? 'paragraphStyles' : params.type === 'character' ? 'characterStyles' : 'objectStyles';
     const code = `
-      var style = app.activeDocument.${styleCollection}.item("${escName}").duplicate();
+      var style = __resolveDocument().${styleCollection}.item("${escName}").duplicate();
       style.name = "${escNew}";
       JSON.stringify({ name: style.name });
     `;
@@ -246,7 +247,7 @@ export class StyleHandler implements IHandler {
     const params = z.object({ type: z.enum(['paragraph', 'character', 'object']), name: z.string() }).parse(args as Record<string, unknown>);
     const escName = this.escape(params.name);
     const styleCollection = params.type === 'paragraph' ? 'paragraphStyles' : params.type === 'character' ? 'characterStyles' : 'objectStyles';
-    const code = `app.activeDocument.${styleCollection}.item("${escName}").remove(); "deleted"`;
+    const code = `__resolveDocument().${styleCollection}.item("${escName}").remove(); "deleted"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }

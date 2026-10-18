@@ -123,4 +123,21 @@ describe('ComScriptExecutor', () => {
     expect(child.kill).toHaveBeenCalled();
     expect(mockUnlinkSync).toHaveBeenCalledWith(tempPath);
   });
+
+  it('injects the per-call document target on the Windows path too', async () => {
+    const { withDocumentTarget } = await import('../../src/bridge/documentTarget.js');
+    const p = withDocumentTarget('B.indd', () => executor.execute('__resolveDocument().name;'));
+    const content = lastTempFileContent();
+    expect(content).toContain('var __TARGET_DOCUMENT_ID = "B.indd";');
+    expect(content).toContain('__resolveDocument()');
+    child.stdout.emit('data', Buffer.from('"ok"\n'));
+    await p;
+  });
+
+  it('injects no target when none is bound', async () => {
+    const p = executor.execute('1;');
+    expect(lastTempFileContent()).toContain('var __TARGET_DOCUMENT_ID = null;');
+    child.stdout.emit('data', Buffer.from('"ok"\n'));
+    await p;
+  });
 });

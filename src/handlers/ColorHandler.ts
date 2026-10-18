@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class ColorHandler implements IHandler {
@@ -80,7 +81,7 @@ export class ColorHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -123,7 +124,7 @@ export class ColorHandler implements IHandler {
     }
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       ${colorCode}
       JSON.stringify({ name: color.name, model: "${params.model}", colorType: "${params.colorType}" });
     `;
@@ -133,7 +134,7 @@ export class ColorHandler implements IHandler {
 
   private async listSwatches(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var result = [];
       for (var i = 0; i < doc.colors.length; i++) {
         var c = doc.colors[i];
@@ -164,7 +165,7 @@ export class ColorHandler implements IHandler {
     const escName = this.escape(params.name);
 
     const code = `
-      var color = app.activeDocument.colors.item("${escName}");
+      var color = __resolveDocument().colors.item("${escName}");
       if (!color.isValid) { throw new Error("Swatch not found"); }
       color.remove();
       "deleted";
@@ -186,7 +187,7 @@ export class ColorHandler implements IHandler {
     const escName = this.escape(params.name);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var grad = doc.gradients.add({name: "${escName}", type: GradientType.${params.type === 'linear' ? 'LINEAR' : 'RADIAL'}});
       JSON.stringify({ name: grad.name, type: "${params.type}", stops: ${params.stops.length} });
     `;
@@ -205,7 +206,7 @@ export class ColorHandler implements IHandler {
     const code = `
       var sel = app.selection;
       if (sel.length === 0) { throw new Error("No selection"); }
-      var swatch = app.activeDocument.colors.item("${escName}");
+      var swatch = __resolveDocument().colors.item("${escName}");
       if (!swatch.isValid) { throw new Error("Swatch not found"); }
       ${params.target === 'fill' || params.target === 'both' ? `sel[0].fillColor = swatch;` : ''}
       ${params.target === 'stroke' || params.target === 'both' ? `sel[0].strokeColor = swatch;` : ''}
@@ -217,7 +218,7 @@ export class ColorHandler implements IHandler {
 
   private async listInks(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var inks = app.activeDocument.inks;
+      var inks = __resolveDocument().inks;
       var result = [];
       for (var i = 0; i < inks.length; i++) {
         result.push({

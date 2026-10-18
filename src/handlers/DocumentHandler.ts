@@ -5,6 +5,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { SessionManager } from '../core/SessionManager.js';
 import { filePathError } from '../utils/security.js';
 import { escapeExtendScriptString } from '../utils/stringUtils.js';
@@ -86,7 +87,7 @@ export class DocumentHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -172,8 +173,8 @@ export class DocumentHandler implements IHandler {
 
     const saveOpt = params.saveOptions === 'yes' ? 'SaveOptions.yes' : params.saveOptions === 'no' ? 'SaveOptions.no' : 'SaveOptions.ask';
     const code = params.filePath
-      ? `app.activeDocument.save(File("${escapeExtendScriptString(params.filePath!)}")); "saved"`
-      : `app.activeDocument.${saveOpt === 'SaveOptions.yes' ? 'save()' : 'close(' + saveOpt + ')'}; "saved"`;
+      ? `__resolveDocument().save(File("${escapeExtendScriptString(params.filePath!)}")); "saved"`
+      : `__resolveDocument().${saveOpt === 'SaveOptions.yes' ? 'save()' : 'close(' + saveOpt + ')'}; "saved"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -181,15 +182,15 @@ export class DocumentHandler implements IHandler {
   private async close(args: unknown, _extra: any): Promise<ToolResult> {
     const params = closeDocumentSchema.parse(args);
     const opt = params.saveOptions === 'yes' ? 'SaveOptions.yes' : params.saveOptions === 'no' ? 'SaveOptions.no' : 'SaveOptions.ask';
-    const code = `app.activeDocument.close(${opt}); "closed"`;
+    const code = `__resolveDocument().close(${opt}); "closed"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
 
   private async getInfo(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      if (!app.activeDocument) throw new Error("No active document");
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
+      if (!doc) throw new Error("No active document");
       var filePath = "";
       try { filePath = doc.fullName.toString(); } catch(e) {}
       JSON.stringify({
@@ -233,8 +234,8 @@ export class DocumentHandler implements IHandler {
     // getInfo + listOpen + layer + selection sequence with a single bridge
     // round-trip, which is where the latency and the drift between calls live.
     const code = `
-      if (!app.activeDocument) throw new Error("No active document");
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
+      if (!doc) throw new Error("No active document");
       var filePath = "";
       try { filePath = doc.fullName.toString(); } catch(e) {}
       var openDocuments = [];
@@ -275,7 +276,7 @@ export class DocumentHandler implements IHandler {
     const params = z.object({ pageIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var page = doc.pages[${params.pageIndex}];
       var allStories = doc.stories;
       var result = [];
@@ -311,7 +312,7 @@ export class DocumentHandler implements IHandler {
     const params = z.object({ storyIndex: z.number().int().min(0) }).parse(args as Record<string, unknown>);
 
     const code = `
-      var story = app.activeDocument.stories[${params.storyIndex}];
+      var story = __resolveDocument().stories[${params.storyIndex}];
       var result = [];
       var seen = {};
       for (var ti = 0; ti < story.textContainers.length; ti++) {

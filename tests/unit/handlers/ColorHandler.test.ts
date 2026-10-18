@@ -313,7 +313,7 @@ describe('ColorHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument.inks');
+      expect(code).toContain('__resolveDocument().inks');
       expect(code).toContain('inkType');
       expect(result.content[0]).toHaveProperty('type', 'text');
     });

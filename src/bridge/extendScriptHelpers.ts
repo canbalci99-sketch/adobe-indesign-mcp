@@ -52,6 +52,31 @@ function __getActiveDocument() {
   return app.activeDocument;
 }
 
+// ── Target document resolution ──
+// __TARGET_DOCUMENT_ID is injected by wrapExtendScript: a document name or a
+// 0-based index when the caller passed document_id, otherwise null. Every
+// document-scoped script resolves its document through __resolveDocument()
+// instead of reading app.activeDocument directly, so a call lands on the
+// document it named even when another tab is frontmost — or when the front tab
+// changes mid-script. With no target this is exactly app.activeDocument, so the
+// historical behaviour is preserved bit for bit.
+function __openDocumentNames() {
+  var names = [];
+  for (var i = 0; i < app.documents.length; i++) { names.push(app.documents[i].name); }
+  return names.length ? names.join(', ') : '(none)';
+}
+
+function __resolveDocument() {
+  if (__TARGET_DOCUMENT_ID === null || typeof __TARGET_DOCUMENT_ID === 'undefined') {
+    return app.activeDocument;
+  }
+  var doc = __findDocument(__TARGET_DOCUMENT_ID);
+  if (!doc) {
+    throw new Error("document_id '" + __TARGET_DOCUMENT_ID + "' is not open. Open documents: " + __openDocumentNames());
+  }
+  return doc;
+}
+
 // ── DOM Navigation: Pages ──
 function __findPage(doc, pageNameOrIndex) {
   if (!doc || !doc.pages) return null;

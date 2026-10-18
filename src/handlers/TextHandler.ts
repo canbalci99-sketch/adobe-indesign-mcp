@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class TextHandler implements IHandler {
@@ -93,7 +94,7 @@ export class TextHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -116,7 +117,7 @@ export class TextHandler implements IHandler {
     const escContent = this.escape(this.normalizeParagraphs(params.content));
     const { top, left, bottom, right } = params.bounds;
     const code = `
-      var page = app.activeDocument.pages[${params.pageIndex}];
+      var page = __resolveDocument().pages[${params.pageIndex}];
       var tf = page.textFrames.add();
       tf.geometricBounds = [${top}, ${left}, ${bottom}, ${right}];
       tf.contents = "${escContent}";
@@ -133,7 +134,7 @@ export class TextHandler implements IHandler {
       content: z.string(),
     }).parse(args as Record<string, unknown>);
     const escContent = this.escape(this.normalizeParagraphs(params.content));
-    const code = `app.activeDocument.pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents = "${escContent}"; "set"`;
+    const code = `__resolveDocument().pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents = "${escContent}"; "set"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -147,8 +148,8 @@ export class TextHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = params.includeControlChars
-      ? `app.activeDocument.pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents`
-      : `app.activeDocument.pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents.replace(/[\\ufeff\\u0004]/g, '')`;
+      ? `__resolveDocument().pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents`
+      : `__resolveDocument().pages[${params.pageIndex}].textFrames[${params.frameIndex}].contents.replace(/[\\ufeff\\u0004]/g, '')`;
 
     const response = await this.executor.execute(code, params.timeout);
     return formatResponse(response.result);
@@ -166,7 +167,7 @@ export class TextHandler implements IHandler {
       : "stories[i].contents.replace(/[\\ufeff\\u0004]/g, '').substring(0, 200)";
 
     const code = `
-      var stories = app.activeDocument.stories;
+      var stories = __resolveDocument().stories;
       var result = [];
       var limit = Math.min(stories.length, ${params.maxResults});
       for (var i = 0; i < limit; i++) {
@@ -192,8 +193,8 @@ export class TextHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
     const escStyle = this.escape(params.styleName);
     const code = params.paragraphIndex !== undefined
-      ? `app.activeDocument.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}].appliedParagraphStyle = app.activeDocument.paragraphStyles.item("${escStyle}"); "applied"`
-      : `app.activeDocument.pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs.everyItem().appliedParagraphStyle = app.activeDocument.paragraphStyles.item("${escStyle}"); "applied"`;
+      ? `__resolveDocument().pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs[${params.paragraphIndex}].appliedParagraphStyle = __resolveDocument().paragraphStyles.item("${escStyle}"); "applied"`
+      : `__resolveDocument().pages[${params.pageIndex}].textFrames[${params.frameIndex}].paragraphs.everyItem().appliedParagraphStyle = __resolveDocument().paragraphStyles.item("${escStyle}"); "applied"`;
     const response = await this.executor.execute(code);
     return formatResponse(response.result);
   }
@@ -211,7 +212,7 @@ export class TextHandler implements IHandler {
       app.changeTextPreferences = NothingEnum.nothing;
       app.findTextPreferences.findWhat = "${escFind}";
       app.changeTextPreferences.changeTo = "${escReplace}";
-      var changed = app.activeDocument.changeText();
+      var changed = __resolveDocument().changeText();
       app.findTextPreferences = NothingEnum.nothing;
       app.changeTextPreferences = NothingEnum.nothing;
       JSON.stringify({ occurrencesChanged: changed.length });
@@ -232,7 +233,7 @@ export class TextHandler implements IHandler {
       : "tfs[i].contents.replace(/[\\ufeff\\u0004]/g, '').substring(0, 100)";
 
     const code = `
-      var tfs = app.activeDocument.pages[${params.pageIndex}].textFrames;
+      var tfs = __resolveDocument().pages[${params.pageIndex}].textFrames;
       var result = [];
       for (var i = 0; i < tfs.length; i++) {
         result.push({

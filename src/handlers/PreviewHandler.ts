@@ -8,6 +8,7 @@ import { withLogging, withErrorHandling, compose } from '../utils/middleware.js'
 import { InDesignError } from '../utils/errorHandler.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 export interface PreviewIo {
   readFile: (path: string) => Buffer;
@@ -64,7 +65,7 @@ export class PreviewHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -137,7 +138,7 @@ export class PreviewHandler implements IHandler {
       : `app.pngExportPreferences.exportResolution = ${resolution};`;
     const docExpr =
       params.documentIndex === undefined
-        ? 'app.activeDocument'
+        ? '__resolveDocument()'
         : `app.documents[${params.documentIndex}]`;
 
     // InDesign 2026 DOM: Page has no exportFile — export the DOCUMENT with a

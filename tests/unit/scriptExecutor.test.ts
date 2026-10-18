@@ -102,6 +102,30 @@ describe('ScriptExecutor', () => {
     await executor.execute('require("fs")');
   });
 
+  it('should inject the bound document target into the wrapped code', async () => {
+    const { withDocumentTarget } = await import('../../src/bridge/documentTarget.js');
+    executor.on('request', (req) => {
+      expect(req.code).toContain('var __TARGET_DOCUMENT_ID = "B.indd";');
+      expect(req.code).toContain('__resolveDocument()');
+      setTimeout(() => {
+        executor.handleResponse({ id: req.id, type: 'result', result: '' });
+      }, 0);
+    });
+
+    await withDocumentTarget('B.indd', () => executor.execute('__resolveDocument().name;'));
+  });
+
+  it('should inject a null target when none is bound', async () => {
+    executor.on('request', (req) => {
+      expect(req.code).toContain('var __TARGET_DOCUMENT_ID = null;');
+      setTimeout(() => {
+        executor.handleResponse({ id: req.id, type: 'result', result: '' });
+      }, 0);
+    });
+
+    await executor.execute('app.documents.length;');
+  });
+
   it('should report status with queue depth', () => {
     const status = executor.getStatus();
     expect(status).toHaveProperty('connected');

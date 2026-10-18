@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class EffectHandler implements IHandler {
@@ -75,7 +76,7 @@ export class EffectHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -103,7 +104,7 @@ export class EffectHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       var shadow = item.transparencySettings.dropShadowSettings;
       shadow.mode = true;
@@ -136,7 +137,7 @@ export class EffectHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.featherMode = ${featherMap[params.type]};
       item.featherWidth = ${params.width};
@@ -175,7 +176,7 @@ export class EffectHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.transparencySettings.blendSettings.blendMode = ${blendMap[params.blendMode]};
       item.transparencySettings.blendSettings.opacity = ${params.opacity};
@@ -201,7 +202,7 @@ export class EffectHandler implements IHandler {
     const endStr = params.endPoint ? `${params.endPoint.x}, ${params.endPoint.y}` : '100, 0';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.featherMode = FeatherMode.GRADIENT_FEATHER;
       var gf = item.gradientFeather;

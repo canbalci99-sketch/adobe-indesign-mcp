@@ -202,7 +202,7 @@ describe('DocumentHandler', () => {
   });
 
   describe('document_close', () => {
-    it('should call executor with app.activeDocument.close()', async () => {
+    it('should call executor with __resolveDocument().close()', async () => {
       const mock = createMockExecutor();
       mock.execute.mockResolvedValue({ result: 'closed' });
       const handler = new DocumentHandler(mock as any);
@@ -212,7 +212,7 @@ describe('DocumentHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('activeDocument.close(SaveOptions.yes)');
+      expect(code).toContain('__resolveDocument().close(SaveOptions.yes)');
       expect(result.content[0]).toHaveProperty('type', 'text');
     });
 
@@ -242,7 +242,7 @@ describe('DocumentHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument');
+      expect(code).toContain('__resolveDocument()');
       expect(code).toContain('pageWidth');
       expect(code).toContain('margins');
       expect(result.content[0]).toHaveProperty('type', 'text');

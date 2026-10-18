@@ -36,12 +36,14 @@ multi-mutation probes, or anything that touches many DOM objects.
 
 ## Before any layout task
 
-1. **InDesign must be open and visible.** Scripts execute against
-   `app.activeDocument`; with no open document the calls fail, and on the
-   Windows COM bridge a non-visible instance leaves the user looking at an
-   empty application.
-2. **Confirm the active document** before mutating. Tools act on
-   `app.activeDocument`, so the wrong front document is a common failure.
+1. **InDesign must be open and visible.** With no open document the calls fail,
+   and on the Windows COM bridge a non-visible instance leaves the user looking
+   at an empty application.
+2. **Confirm the target document** before mutating. Call `document_getState`
+   first, then pass the document's name (or its `activeDocumentIndex`) as
+   `document_id` on the calls that follow — every tool accepts it. With no
+   `document_id` a tool acts on the front document, so with more than one
+   document open the wrong front tab is a common failure.
 3. Prefer `text_getContent` / `grep_find` to read state before writing it.
 
 ## Reading state

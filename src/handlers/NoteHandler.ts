@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class NoteHandler implements IHandler {
@@ -66,7 +67,7 @@ export class NoteHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -90,7 +91,7 @@ export class NoteHandler implements IHandler {
     const escSuffix = params.suffix ? this.escape(params.suffix) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var story = doc.stories[${params.storyIndex}];
       var para = story.paragraphs[${params.paragraphIndex}];
       var fn = para.footnotes.add();
@@ -114,7 +115,7 @@ export class NoteHandler implements IHandler {
       : 'doc';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var scope = ${scope};
       var fns = scope.footnotes;
       var result = [];
@@ -147,7 +148,7 @@ export class NoteHandler implements IHandler {
     const escSuffix = params.suffix ? this.escape(params.suffix) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var opts = doc.footnoteOptions;
       ${params.numberingType ? `opts.numberingStyle = FootnoteNumberingStyle.${params.numberingType.toUpperCase()}_FOOTNOTE_NUMBERING;` : ''}
       ${params.startingNumber !== undefined ? `opts.startingNumber = ${params.startingNumber};` : ''}
@@ -171,7 +172,7 @@ export class NoteHandler implements IHandler {
     const escText = this.escape(params.text);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var story = doc.stories[${params.storyIndex}];
       var en = story.endnotes.add();
       en.texts[0].contents = "${escText}";

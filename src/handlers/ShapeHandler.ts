@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class ShapeHandler implements IHandler {
@@ -108,7 +109,7 @@ export class ShapeHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -129,12 +130,12 @@ export class ShapeHandler implements IHandler {
       strokeWeight: z.number().min(0).default(0),
     }).parse(args as Record<string, unknown>);
 
-    const fillStr = params.fillColor ? `shape.fillColor = app.activeDocument.colors.item("${this.escape(params.fillColor)}");` : '';
-    const strokeStr = params.strokeColor ? `shape.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");` : '';
+    const fillStr = params.fillColor ? `shape.fillColor = __resolveDocument().colors.item("${this.escape(params.fillColor)}");` : '';
+    const strokeStr = params.strokeColor ? `shape.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");` : '';
     const radiusStr = params.cornerRadius !== undefined ? `shape.cornerRadius = ${params.cornerRadius};` : '';
 
     const code = `
-      var shape = app.activeDocument.pages[${params.pageIndex}].rectangles.add();
+      var shape = __resolveDocument().pages[${params.pageIndex}].rectangles.add();
       shape.geometricBounds = [${params.y}, ${params.x}, ${params.y + params.height}, ${params.x + params.width}];
       shape.strokeWeight = ${params.strokeWeight};
       ${fillStr}
@@ -158,11 +159,11 @@ export class ShapeHandler implements IHandler {
       strokeWeight: z.number().min(0).default(0),
     }).parse(args as Record<string, unknown>);
 
-    const fillStr = params.fillColor ? `shape.fillColor = app.activeDocument.colors.item("${this.escape(params.fillColor)}");` : '';
-    const strokeStr = params.strokeColor ? `shape.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");` : '';
+    const fillStr = params.fillColor ? `shape.fillColor = __resolveDocument().colors.item("${this.escape(params.fillColor)}");` : '';
+    const strokeStr = params.strokeColor ? `shape.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");` : '';
 
     const code = `
-      var shape = app.activeDocument.pages[${params.pageIndex}].ovals.add();
+      var shape = __resolveDocument().pages[${params.pageIndex}].ovals.add();
       shape.geometricBounds = [${params.y}, ${params.x}, ${params.y + params.height}, ${params.x + params.width}];
       shape.strokeWeight = ${params.strokeWeight};
       ${fillStr}
@@ -186,15 +187,15 @@ export class ShapeHandler implements IHandler {
       strokeWeight: z.number().min(0).default(0),
     }).parse(args as Record<string, unknown>);
 
-    const fillStr = params.fillColor ? `shape.fillColor = app.activeDocument.colors.item("${this.escape(params.fillColor)}");` : '';
-    const strokeStr = params.strokeColor ? `shape.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");` : '';
+    const fillStr = params.fillColor ? `shape.fillColor = __resolveDocument().colors.item("${this.escape(params.fillColor)}");` : '';
+    const strokeStr = params.strokeColor ? `shape.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");` : '';
 
     // InDesign 2026 DOM: polygon side count lives on application-level
     // preferences and must be set BEFORE add() — the instance property
     // `shape.numberOfSides` no longer exists and throws at runtime.
     const code = `
       app.polygonPreferences.numberOfSides = ${params.numberOfSides};
-      var shape = app.activeDocument.pages[${params.pageIndex}].polygons.add();
+      var shape = __resolveDocument().pages[${params.pageIndex}].polygons.add();
       shape.geometricBounds = [${params.y}, ${params.x}, ${params.y + params.height}, ${params.x + params.width}];
       shape.strokeWeight = ${params.strokeWeight};
       ${fillStr}
@@ -216,10 +217,10 @@ export class ShapeHandler implements IHandler {
       strokeWeight: z.number().min(0).default(1),
     }).parse(args as Record<string, unknown>);
 
-    const strokeStr = params.strokeColor ? `line.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");` : '';
+    const strokeStr = params.strokeColor ? `line.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");` : '';
 
     const code = `
-      var line = app.activeDocument.pages[${params.pageIndex}].graphicLines.add();
+      var line = __resolveDocument().pages[${params.pageIndex}].graphicLines.add();
       line.geometricBounds = [${params.y1}, ${params.x1}, ${params.y2}, ${params.x2}];
       line.strokeWeight = ${params.strokeWeight};
       ${strokeStr}
@@ -247,13 +248,13 @@ export class ShapeHandler implements IHandler {
     if (params.x !== undefined && params.y !== undefined && params.width !== undefined && params.height !== undefined) {
       setStr += `shape.geometricBounds = [${params.y}, ${params.x}, ${params.y + params.height}, ${params.x + params.width}];\n`;
     }
-    if (params.fillColor) setStr += `shape.fillColor = app.activeDocument.colors.item("${this.escape(params.fillColor)}");\n`;
-    if (params.strokeColor) setStr += `shape.strokeColor = app.activeDocument.colors.item("${this.escape(params.strokeColor)}");\n`;
+    if (params.fillColor) setStr += `shape.fillColor = __resolveDocument().colors.item("${this.escape(params.fillColor)}");\n`;
+    if (params.strokeColor) setStr += `shape.strokeColor = __resolveDocument().colors.item("${this.escape(params.strokeColor)}");\n`;
     if (params.strokeWeight !== undefined) setStr += `shape.strokeWeight = ${params.strokeWeight};\n`;
     if (params.cornerRadius !== undefined) setStr += `shape.cornerRadius = ${params.cornerRadius};\n`;
 
     const code = `
-      var items = app.activeDocument.pages[${params.pageIndex}].allPageItems;
+      var items = __resolveDocument().pages[${params.pageIndex}].allPageItems;
       var shape = items[${params.itemIndex}];
       if (!shape) { throw new Error("Shape not found"); }
       ${setStr}
@@ -270,7 +271,7 @@ export class ShapeHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var items = app.activeDocument.pages[${params.pageIndex}].allPageItems;
+      var items = __resolveDocument().pages[${params.pageIndex}].allPageItems;
       var shape = items[${params.itemIndex}];
       if (!shape) { throw new Error("Shape not found"); }
       shape.remove();

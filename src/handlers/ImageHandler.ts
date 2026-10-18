@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 import { filePathError } from '../utils/security.js';
 
@@ -75,7 +76,7 @@ export class ImageHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -107,7 +108,7 @@ export class ImageHandler implements IHandler {
       : '';
 
     const code = `
-      var page = app.activeDocument.pages[${params.pageIndex}];
+      var page = __resolveDocument().pages[${params.pageIndex}];
       var img = page.place(File("${escPath}"))[0];
       ${scaleCode}
       JSON.stringify({
@@ -133,7 +134,7 @@ export class ImageHandler implements IHandler {
     if (params.contrast !== undefined) setStr += `img.contrast = ${params.contrast};\n`;
 
     const code = `
-      var img = app.activeDocument.pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
+      var img = __resolveDocument().pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
       if (!img) { throw new Error("Image not found"); }
       ${setStr}
       "adjusted";
@@ -158,7 +159,7 @@ export class ImageHandler implements IHandler {
     };
 
     const code = `
-      var img = app.activeDocument.pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
+      var img = __resolveDocument().pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
       if (!img) { throw new Error("Image not found"); }
       img.fit(FitOptions.${fittingMap[params.fitting]});
       JSON.stringify({ fitting: "${params.fitting}", bounds: img.geometricBounds });
@@ -176,7 +177,7 @@ export class ImageHandler implements IHandler {
 
     const escPath = this.escape(params.filePath);
     const code = `
-      var img = app.activeDocument.pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
+      var img = __resolveDocument().pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
       if (!img || !img.imageLink) { throw new Error("Image or link not found"); }
       img.imageLink.relink(File("${escPath}"));
       "relinked";
@@ -192,7 +193,7 @@ export class ImageHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var img = app.activeDocument.pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
+      var img = __resolveDocument().pages[${params.pageIndex}].allGraphics[${params.itemIndex}];
       if (!img) { throw new Error("Image not found"); }
       var link = img.imageLink;
       JSON.stringify({

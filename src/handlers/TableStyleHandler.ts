@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class TableStyleHandler implements IHandler {
@@ -66,7 +67,7 @@ export class TableStyleHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -93,7 +94,7 @@ export class TableStyleHandler implements IHandler {
     const escStroke = params.strokeColor ? this.escape(params.strokeColor) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var style = doc.tableStyles.add({ name: "${escName}" });
       ${params.basedOn ? `style.basedOn = doc.tableStyles.item("${escBasedOn}");` : ''}
       ${params.fillColor ? `style.fillColor = doc.swatches.item("${escFill}");` : ''}
@@ -109,7 +110,7 @@ export class TableStyleHandler implements IHandler {
 
   private async listTableStyles(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var styles = doc.tableStyles;
       var result = [];
       for (var i = 0; i < styles.length; i++) {
@@ -149,7 +150,7 @@ export class TableStyleHandler implements IHandler {
     const escPara = params.paragraphStyle ? this.escape(params.paragraphStyle) : '';
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var style = doc.cellStyles.add({ name: "${escName}" });
       ${params.basedOn ? `style.basedOn = doc.cellStyles.item("${escBasedOn}");` : ''}
       ${params.fillColor ? `style.fillColor = doc.swatches.item("${escFill}");` : ''}
@@ -168,7 +169,7 @@ export class TableStyleHandler implements IHandler {
 
   private async listCellStyles(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var styles = doc.cellStyles;
       var result = [];
       for (var i = 0; i < styles.length; i++) {

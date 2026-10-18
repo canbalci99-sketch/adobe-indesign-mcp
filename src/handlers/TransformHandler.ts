@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 
 export class TransformHandler implements IHandler {
   public readonly name = 'transform';
@@ -75,7 +76,7 @@ export class TransformHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -97,7 +98,7 @@ export class TransformHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       doc.documentPreferences.properties = { properties: { documentBleedUniformSize: true } };
       doc.select(null);
       var items = [];
@@ -133,7 +134,7 @@ export class TransformHandler implements IHandler {
     };
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       doc.select(null);
       var pageItems = doc.pages[${params.pageIndex}].allPageItems;
       ${params.itemIndices.map(idx => `pageItems[${idx}].select(true);`).join('\n')}
@@ -155,7 +156,7 @@ export class TransformHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       ${params.layerIndex !== undefined ? `item.itemLayer = doc.layers[${params.layerIndex}];` : ''}
       item.rotate((${params.angle} * -1));
@@ -175,7 +176,7 @@ export class TransformHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.scale(${params.scaleX}${params.isPercentage ? '' : ''}, ${params.scaleY}${params.isPercentage ? '' : ''});
       JSON.stringify({ scaled: true, scaleX: ${params.scaleX}, scaleY: ${params.scaleY} });
@@ -192,7 +193,7 @@ export class TransformHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
 
     const code = `
-      var doc = app.activeDocument;
+      var doc = __resolveDocument();
       var item = doc.pages[${params.pageIndex}].allPageItems[${params.itemIndex}];
       item.flipItem(${params.axis === 'horizontal' ? 'Flip.HORIZONTAL' : 'Flip.VERTICAL'});
       JSON.stringify({ flipped: true, axis: "${params.axis}" });

@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class InteractiveHandler implements IHandler {
@@ -56,7 +57,7 @@ export class InteractiveHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -67,7 +68,7 @@ export class InteractiveHandler implements IHandler {
   private async listHyperlinks(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
       var result = [];
-      var hyperlinks = app.activeDocument.hyperlinks;
+      var hyperlinks = __resolveDocument().hyperlinks;
       for (var i = 0; i < hyperlinks.length; i++) {
         var h = hyperlinks[i];
         result.push({
@@ -92,9 +93,9 @@ export class InteractiveHandler implements IHandler {
     const escName = this.escape(params.name);
     const escUrl = this.escape(params.url);
     const code = `
-      var dest = app.activeDocument.hyperlinkURLDestinations.add("${escUrl}");
-      var src = app.activeDocument.pages[${params.pageIndex}].pageItems[${params.itemIndex}];
-      var link = app.activeDocument.hyperlinks.add(src, dest, "${escName}");
+      var dest = __resolveDocument().hyperlinkURLDestinations.add("${escUrl}");
+      var src = __resolveDocument().pages[${params.pageIndex}].pageItems[${params.itemIndex}];
+      var link = __resolveDocument().hyperlinks.add(src, dest, "${escName}");
       JSON.stringify({ name: link.name, url: "${escUrl}" });
     `;
     const response = await this.executor.execute(code);
@@ -104,7 +105,7 @@ export class InteractiveHandler implements IHandler {
   private async deleteHyperlink(args: unknown, _extra: any): Promise<ToolResult> {
     const params = z.object({ index: z.number().int().min(0) }).parse(args as Record<string, unknown>);
     const code = `
-      var link = app.activeDocument.hyperlinks[${params.index}];
+      var link = __resolveDocument().hyperlinks[${params.index}];
       if (!link.isValid) { throw new Error("Hyperlink not found"); }
       link.remove();
       "deleted";
@@ -116,7 +117,7 @@ export class InteractiveHandler implements IHandler {
   private async listButtons(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
       var result = [];
-      var buttons = app.activeDocument.buttons;
+      var buttons = __resolveDocument().buttons;
       for (var i = 0; i < buttons.length; i++) {
         var b = buttons[i];
         result.push({ index: i, name: b.name, id: b.id, visible: b.visible });
@@ -130,7 +131,7 @@ export class InteractiveHandler implements IHandler {
   private async listAnchors(_args: unknown, _extra: any): Promise<ToolResult> {
     const code = `
       var result = [];
-      var anchors = app.activeDocument.crossReferenceSources;
+      var anchors = __resolveDocument().crossReferenceSources;
       for (var i = 0; i < anchors.length; i++) {
         var a = anchors[i];
         result.push({ index: i, name: a.name });

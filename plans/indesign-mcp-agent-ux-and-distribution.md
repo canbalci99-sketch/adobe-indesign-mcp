@@ -159,6 +159,9 @@ unshipped capability. Present on `initialize`, 2436 chars ≈ 609 tokens, and ev
 tool it names resolves. One deviation from the task text above: the contract
 points at `document_getState`, not `document_getInfo`, as the source of truth
 before mutating — that task line predates S3's tool. See the mutation entry.
+**[rev 2026-10-18]** The "pin the document" rule no longer has to be phrased
+around "ask which document": `document_id` now exists, so the contract names it
+directly. See the 2026-10-18 mutation entry.
 
 **Rollback.** One string and one constructor argument.
 
@@ -192,7 +195,10 @@ criterion as written was never met and could not be: pinning a document needs a
 shared resolver for the 191 inline `app.activeDocument` sites, which is a
 refactor, not an increment (see the S3 mutation entry). What actually shipped:
 `preview_document` with `documentIndex` plus a 4 MB cap, and `document_getState`.
-`document_getCapabilities` was dropped for having no consumer.
+`document_getCapabilities` was dropped for having no consumer. **[rev 2026-10-18 —
+`document_id` half now met.]** The shared resolver was built and `document_id`
+ships on every tool; `preview_document` honours it too (its existing
+`documentIndex` still wins when both are given). See the 2026-10-18 mutation entry.
 
 **Rollback.** Additive handlers; `preview_document` changes revert independently.
 
@@ -451,6 +457,40 @@ on S5, so they are not.
 ## Mutation protocol
 
 Any change to a step records what changed, why, what it blocks, and the date.
+
+- **2026-10-18** — **S3's deferred `document_id` exit criterion is now met: a
+  shared document resolver plus a per-call target on every tool.** S3 (below)
+  recorded that `document_id` "could not" ship because pinning a document needs a
+  shared resolver for the inline `app.activeDocument` sites, "which is a refactor,
+  not an increment". That refactor is this change. `app.activeDocument` was inline
+  in **197 places across 32 handlers** (the plan's earlier 191 was a partial
+  count); `__resolveDocument()` is now injected with every script and every
+  document-scoped handler resolves through it. `document_id` — a name (as
+  `document_listOpen` reports it) or a 0-based index — is added **once, in
+  `registerTool`, to all 197 tools**, not only the mutating ones the task text
+  named: the registry carries no read/write classification to drive a partial
+  rule, and a hand-classified subset would be exactly the half-measure that goes
+  stale the first time a tool is added. The target is bound in
+  `AsyncLocalStorage`, not on the executor, because a handler may await before
+  dispatching and a plain field would let a concurrent call overwrite the target
+  in that window. `document_id` reaches InDesign as a JSON string literal and is
+  matched by name, so it is never executable — pinned by a test whose payload
+  would run from an unescaped literal and must leave no trace. A target that is
+  not open **fails loudly** (`document_id 'X' is not open. Open documents: …`)
+  instead of silently editing the front document. No target bound = the front
+  document, bit for bit the pre-1.5 behaviour, so the change is additive.
+  **Verification:** `npm run verify` (lint, tool counts, docs, **1090 tests**,
+  +38 covering the resolver, the injected literal, the per-call binding, a
+  concurrent-call race, and a hostile `document_id`), `tsc --noEmit` clean, and
+  `verify:pack`. The tool count is unchanged at 197 — `document_id` is a
+  parameter, and the generated `docs/available-tools.md` renders names and
+  descriptions only, so it does not drift. **Deliberately not done:** no version
+  bump and no tag; the release decision is the maintainer's, so the change sits
+  under CHANGELOG `[Unreleased]` with the README "What's New" untouched.
+  **Plan impact:** S3's exit criteria and S2's status note are corrected below.
+  **Unblocks:** S10's multi-document isolation scenario now has the mechanism it
+  needed; a live two-document run against InDesign 2026 is the remaining
+  evidence.
 
 - **2026-10-18** — **v1.4.3 shipped as a git-only release.** With npm credentials
   still absent (open question 2) and a Windows machine still absent (open

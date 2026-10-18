@@ -96,7 +96,7 @@ describe('ObjectHandler', () => {
 
       expect(mock.execute).toHaveBeenCalledTimes(1);
       const code = mock.execute.mock.calls[0][0] as string;
-      expect(code).toContain('app.activeDocument.links');
+      expect(code).toContain('__resolveDocument().links');
       expect(code).toContain('filePath');
       expect(code).toContain('status');
       expect(code).toContain('embedded');

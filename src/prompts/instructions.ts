@@ -30,9 +30,11 @@ STATE BEFORE ACTION
   front document's geometry, the other open documents, the active layer and the
   selection in one round-trip, and its output is the source of truth. Do not
   assume geometry.
-- Tools act on the front document. If document_getState shows more than one
-  document open, do not assume the front one is the intended target — ask which
-  document, or open the intended one first.
+- Every tool takes an optional document_id: a document name (as document_listOpen
+  reports it) or a 0-based index. Pass it to act on a specific open document.
+  Without it a tool acts on the front document, so when document_getState shows
+  more than one document open, pass document_id rather than relying on the front
+  tab — and do not assume the front one is the intended target.
 
 CLOSING AND SAVING
 - document_close defaults saveOptions to "no": it closes without saving and can
@@ -57,8 +59,7 @@ ERRORS ARE STRUCTURED
 VERIFY WHAT YOU CHANGED
 - Call preview_document to look at the result before reporting success, rather
   than assuming a change landed as intended. It renders the front document by
-  default; pass the activeDocumentIndex that document_getState reports to render
-  another open document.
+  default; pass document_id to render another open document.
 
 MULTI-STEP EDITS
 - Wrap a multi-step call in undo_beginGroup / undo_endGroup so the whole call is

@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/errorHandler.js';
 import { withLogging, withErrorHandling, compose } from '../utils/middleware.js';
 import type { ScriptExecutor } from '../bridge/ScriptExecutor.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerTool } from '../server/registerTool.js';
 import { escapeExtendScriptString } from "../utils/stringUtils.js";
 
 export class TableHandler implements IHandler {
@@ -206,7 +207,7 @@ export class TableHandler implements IHandler {
 
   public register(server: McpServer): void {
     for (const tool of this.tools) {
-      server.tool(tool.name, tool.description, tool.inputSchema, tool.handler);
+      registerTool(server, tool);
     }
   }
 
@@ -215,7 +216,7 @@ export class TableHandler implements IHandler {
   }
 
   private scope(pageIndex?: number): string {
-    return pageIndex !== undefined ? `app.activeDocument.pages[${pageIndex}]` : 'app.activeDocument';
+    return pageIndex !== undefined ? `__resolveDocument().pages[${pageIndex}]` : '__resolveDocument()';
   }
 
   private async create(args: unknown, _extra: any): Promise<ToolResult> {
@@ -227,7 +228,7 @@ export class TableHandler implements IHandler {
     }).parse(args as Record<string, unknown>);
     const b = params.bounds;
     const code = `
-      var pg = app.activeDocument.pages[${params.pageIndex}];
+      var pg = __resolveDocument().pages[${params.pageIndex}];
       var tf = pg.textFrames.add();
       tf.geometricBounds = [${b.top}, ${b.left}, ${b.bottom}, ${b.right}];
       var table = tf.tables.add();
@@ -415,7 +416,7 @@ export class TableHandler implements IHandler {
       var table = ${this.scope(params.pageIndex)}.tables[${params.tableIndex}];
       if (!table.isValid) { throw new Error("Table not found"); }
       var cell = table.rows[${params.rowIndex}].cells[${params.columnIndex}];
-      cell.fillColor = app.activeDocument.colors.item("${escColor}");${tintLine}
+      cell.fillColor = __resolveDocument().colors.item("${escColor}");${tintLine}
       JSON.stringify({ fillColor: "${escColor}", tint: ${tintVal} });
     `;
     const response = await this.executor.execute(code);
@@ -440,10 +441,10 @@ export class TableHandler implements IHandler {
     for (const e of edges) {
       assignments += `\n      cell.${e}EdgeStrokeWeight = ${params.strokeWeight};`;
       if (params.strokeColor) {
-        assignments += `\n      cell.${e}EdgeStrokeColor = app.activeDocument.colors.item("${escColor}");`;
+        assignments += `\n      cell.${e}EdgeStrokeColor = __resolveDocument().colors.item("${escColor}");`;
       }
       if (params.strokeType) {
-        assignments += `\n      cell.${e}EdgeStrokeType = app.activeDocument.strokeStyles.item("${escStrokeType}");`;
+        assignments += `\n      cell.${e}EdgeStrokeType = __resolveDocument().strokeStyles.item("${escStrokeType}");`;
       }
     }
     const code = `
