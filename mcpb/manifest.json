@@ -1,0 +1,28 @@
+{
+  "manifest_version": "0.3",
+  "name": "indesign-nutria-mcp",
+  "version": "1.5.0",
+  "description": "MCP server for Adobe InDesign — 197 tools, full DOM control, AI-native automation",
+  "author": {
+    "name": "Andrea Cacioppo",
+    "url": "https://github.com/nutriandrea"
+  },
+  "homepage": "https://github.com/nutriandrea/adobe-indesign-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nutriandrea/adobe-indesign-mcp.git"
+  },
+  "license": "MIT",
+  "keywords": ["adobe", "indesign", "mcp", "model-context-protocol", "automation"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"]
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32"]
+  }
+}

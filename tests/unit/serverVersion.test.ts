@@ -22,6 +22,7 @@ const readJson = (relativePath: string) =>
 
 const pkg = readJson('../../package.json') as { version: string };
 const pluginManifest = readJson('../../plugin/manifest.json') as { version: string };
+const mcpbManifest = readJson('../../mcpb/manifest.json') as { version: string };
 
 describe('the advertised version', () => {
   it('matches package.json', () => {
@@ -39,5 +40,11 @@ describe('the advertised version', () => {
 
   it('is the same version the UXP panel is stamped with', () => {
     expect(pluginManifest.version).toBe(pkg.version);
+  });
+
+  it('is the same version the MCP bundle is stamped with', () => {
+    // server.json is generated from package.json so it cannot drift on its own;
+    // this manifest is hand-written, which is exactly the kind that does.
+    expect(mcpbManifest.version).toBe(pkg.version);
   });
 });

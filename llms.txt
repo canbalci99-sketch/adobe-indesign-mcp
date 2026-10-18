@@ -1,0 +1,26 @@
+# indesign-nutria-mcp
+
+> MCP server for Adobe InDesign. 197 tools across 34 handlers give an LLM host
+> full DOM control — documents, pages, text, shapes, styles, tables, export —
+> over a local bridge to the running InDesign application. macOS (JXA + UXP
+> panel) and Windows (COM) are both supported.
+
+Not published to npm yet: install from the repository. See the README Quick
+Start for the clone-and-build path, and `examples/` for ready-made client
+configs.
+
+## Docs
+
+- [README](https://github.com/nutriandrea/adobe-indesign-mcp#readme): what it does, install, handler catalog
+- [Architecture](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/docs/architecture.md): the four-process macOS path and the Windows COM path
+- [Available tools](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/docs/available-tools.md): the generated catalog, one row per tool
+- [Troubleshooting](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/docs/troubleshooting.md): the modal save hang, port 8120 in use, missing fonts, blocked policy errors
+- [Development](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/docs/development.md): build, test, and the live smoke tests
+- [Windows](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/WINDOWS.md): the COM bridge and what has not been exercised against it
+- [Changelog](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/CHANGELOG.md): release notes
+- [Client configs](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/examples/README.md): Claude Desktop, Cursor, Claude Code
+
+## Optional
+
+- [Security](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/SECURITY.md)
+- [Contributing](https://github.com/nutriandrea/adobe-indesign-mcp/blob/main/CONTRIBUTING.md)

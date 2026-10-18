@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "indesign": {
+      "command": "node",
+      "args": ["C:\\ABSOLUTE\\PATH\\TO\\adobe-indesign-mcp\\dist\\index.js"],
+      "env": {
+        "COM_BRIDGE_ENABLED": "true"
+      }
+    }
+  }
+}

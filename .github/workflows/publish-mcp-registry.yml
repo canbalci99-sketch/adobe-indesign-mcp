@@ -1,0 +1,56 @@
+name: Publish to MCP Registry
+
+# Publishes server.json to the official MCP Registry.
+#
+# Chained off the GitHub Release rather than off the tag, because the registry
+# verifies ownership by fetching the npm package and matching its `mcpName`
+# against the `name` in server.json. If this ran in parallel with the npm
+# publish it would race the package's availability and fail verification.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # GitHub OIDC — the registry accepts the repo's own identity
+
+env:
+  # Pinned, like the actions. `latest` would let a new upstream release change
+  # what this workflow runs without any commit here changing.
+  MCP_PUBLISHER_VERSION: v1.8.1
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+
+      # server.json is generated from package.json, so the version in it cannot
+      # drift — but the *tag* can. Refuse to advertise a version that is not the
+      # one being released.
+      - name: server.json must match the tag
+        env:
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          version="$(node -p "require('./server.json').version")"
+          echo "server.json version: $version"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag '$TAG' does not match server.json version '$version'"
+            exit 1
+          fi
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            | tar xz mcp-publisher
+
+      - name: Authenticate to the MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server.json
+        run: ./mcp-publisher publish

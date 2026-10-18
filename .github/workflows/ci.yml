@@ -51,6 +51,11 @@ jobs:
       # drifted from the code.
       - run: npm run verify:docs
 
+      # server.json (the MCP Registry manifest) is generated from package.json;
+      # fail if it has drifted — the registry rejects a mismatched publish with
+      # a generic error, so this is the only cheap place to catch it.
+      - run: npm run verify:server-json
+
       - run: npm run build
 
   package:

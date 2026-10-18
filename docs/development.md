@@ -37,7 +37,11 @@ The server is not published to npm; run it from the clone.
 | `npm run docs:tools` | regenerates `docs/available-tools.md` from the registry |
 | `npm run verify:docs` | fails if `docs/available-tools.md` is stale |
 | `npm run verify:pack` | build → `npm pack` → install the tarball → boot it and assert 197 tools |
-| `npm run verify` | `lint` + `verify:tool-counts` + `verify:docs` + `test` (the CI gate) |
+| `npm run server:json` | regenerates `server.json` (the MCP Registry manifest) from `package.json` |
+| `npm run verify:server-json` | fails if `server.json` is stale |
+| `npm run build:mcpb` | packs `dist-mcpb/indesign-nutria-mcp-<version>.mcpb` (MCP Bundle, ~10 MB) |
+| `npm run validate:release-tag` | fails unless the tag is `v<package.json version>` and has CHANGELOG notes |
+| `npm run verify` | `lint` + `verify:tool-counts` + `verify:docs` + `verify:server-json` + `test` (the CI gate) |
 | `npm run smoke:macos` | the live four-process smoke test (needs a running InDesign) |
 | `npm run smoke:recipes` | the live gate for the two recipes (needs a running InDesign) |
 | `npm run smoke:target` | the live gate for `document_id` (needs a running InDesign) |
@@ -192,16 +196,21 @@ Set `INDESIGN_APP` to your installed version if it is not `Adobe InDesign 2026`.
 
 ## Verification gates
 
-Three scripts guard the things that go stale silently:
+Four scripts guard the things that go stale silently:
 
 - **`verify:tool-counts`** reads the registry (the same
   `tests/helpers/loadHandlers.ts` the server uses) and fails if the README
-  prose, the badge, the package description, or the README handler-table sum
-  disagree with it. It deliberately ignores the README's per-category headings
-  (`### Text & Typography (27 tools)`) — those are overlapping sub-totals with an
-  uncounted "Other" bucket and do not sum to the total.
+  prose, the badge, the package description, `llms.txt`, or the README
+  handler-table sum disagree with it. It deliberately ignores the README's
+  per-category headings (`### Text & Typography (27 tools)`) — those are
+  overlapping sub-totals with an uncounted "Other" bucket and do not sum to the
+  total.
 - **`verify:docs`** regenerates `docs/available-tools.md` and fails if the file
   on disk differs. Change a tool, run `npm run docs:tools`.
+- **`verify:server-json`** regenerates `server.json` and fails if the file on
+  disk differs. The registry rejects a manifest whose name or version disagrees
+  with the package with a generic "package validation failed", so this is the
+  cheap place to catch it.
 - **`verify:pack`** packs the tarball, installs it into a temp dir, boots the
   packed entry point over stdio, and asserts it advertises 197 tools — the check
   that catches a `files` allowlist shipping `start-bridge.sh` without the
@@ -211,8 +220,47 @@ Three scripts guard the things that go stale silently:
   on `initialize` matches `package.json`, because a live handshake is the only
   place a stale advertised version was ever visible.
 
-`npm run verify` runs lint + both count/doc gates + the test suite; CI runs it
-on Node 18, 20, and 22, then a separate job runs `verify:pack`.
+`npm run verify` runs lint + the count/doc/manifest gates + the test suite; CI
+runs it on Node 18, 20, and 22, then a separate job runs `verify:pack`.
+
+## Distribution artifacts
+
+Four artifacts exist only to get this server installed, and a unit test is the
+only thing that runs them:
+
+| Artifact | Source | Guarded by |
+|---|---|---|
+| `server.json` — MCP Registry manifest | generated from `package.json` | `verify:server-json` + `tests/unit/distributionManifests.test.ts` |
+| `mcpb/manifest.json` — MCP Bundle manifest | hand-written | `tests/unit/serverVersion.test.ts`, `tests/unit/distributionManifests.test.ts` |
+| `examples/*.json` — client configs | hand-written | `tests/unit/distributionManifests.test.ts` |
+| `llms.txt` — agent/directory index | hand-written | `verify:tool-counts` |
+
+Two facts to know before touching them:
+
+- **`server.json`'s `name` must equal `package.json`'s `mcpName`.** That equality
+  is the entire ownership proof the registry uses: it fetches the published npm
+  package and compares the two. A mismatch fails the publish with no useful
+  error, which is why `server.json` is generated and gated rather than typed.
+- **The bundle's entry point is `dist/index.js`, not the conventional
+  `server/index.js`.** MCPB's convention is a `server/` directory, but this
+  server resolves `assets/windows/*.vbs` as `../../assets/…` from
+  `dist/bridge/`, so `scripts/build-mcpb.mjs` stages the *published package
+  layout* (the exact bytes `verify:pack` booted) instead of moving the code.
+  Repointing `entry_point` without also moving that relative path breaks the
+  Windows bridge inside the bundle.
+
+`npm run build:mcpb` writes `dist-mcpb/indesign-nutria-mcp-<version>.mcpb`
+(gitignored; it embeds production `node_modules`). It is not built in CI —
+`release.yml` does, and attaches it to the GitHub Release. The build proves its
+own output: it re-opens the finished archive, asserts `manifest.json` is at the
+root, asserts `assets/windows/run_jsx_persistent.vbs` is where the Windows path
+reaches for it, and boots the server inside the archive to confirm it answers
+`initialize` with the workflow contract and 197 tools. It also prints the
+SHA-256 of the artifact, which a future `registryType: "mcpb"` entry in
+`server.json` would need. The archive is deliberately not byte-reproducible —
+`npm install` writes metadata — so the hash is of the uploaded artifact, not of
+the inputs.
+
 
 ## Adding a tool
 
@@ -236,6 +284,36 @@ number.
 
 ## Releasing
 
-The changelog is [CHANGELOG.md](../CHANGELOG.md). Bump `version` in
-`package.json`, add a dated section, run the full `npm run verify` and
-`npm run smoke:macos`, then tag. Release automation is not wired up yet.
+The changelog is [CHANGELOG.md](../CHANGELOG.md). A release is a tag push; the
+workflows do the rest.
+
+1. **Bump the version** in `package.json`, `plugin/manifest.json` and
+   `mcpb/manifest.json`, plus `SERVER_VERSION` in `src/utils/configLoader.ts`.
+   `tests/unit/serverVersion.test.ts` fails if any of them disagrees.
+2. **Add a dated section** to `CHANGELOG.md` — `## [x.y.z] - YYYY-MM-DD`. It
+   becomes the release notes, so a missing section fails the release rather than
+   publishing an empty one.
+3. `npm run server:json` (the registry manifest is generated from the version).
+4. Run `npm run verify`, `npm run verify:pack`, and the live smoke tests
+   (`smoke:macos`, `smoke:recipes`, `smoke:target`) on a machine with InDesign.
+5. `git tag v<x.y.z> && git push origin v<x.y.z>`.
+
+`scripts/validate-release-tag.sh` is the gate for steps 1–2 and refuses a tag
+that does not match `package.json` or has no CHANGELOG section:
+
+```bash
+npm run validate:release-tag -- v1.5.0
+```
+
+`.github/workflows/release.yml` then runs `verify` and `verify:pack`, publishes
+to npm with provenance, builds the `.mcpb` and attaches it to the GitHub
+Release, and creates the release from the CHANGELOG section.
+`.github/workflows/publish-mcp-registry.yml` publishes `server.json` to the MCP
+Registry, chained off the release rather than the tag so it cannot race npm's
+package availability.
+
+**What is still blocked on credentials, not code:** the npm publish needs a
+repository secret named `NPM_TOKEN`. Without it the release fails *loudly* on a
+"Require NPM_TOKEN" step before anything is published — a silent skip would ship
+a tag that looks released and is not installable. The registry workflow needs no
+extra secret; it authenticates with GitHub OIDC.

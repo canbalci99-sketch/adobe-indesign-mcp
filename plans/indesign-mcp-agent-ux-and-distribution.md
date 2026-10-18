@@ -286,6 +286,24 @@ ships and `plugin/manifest.json` exists, so add only what is genuinely absent.
 
 **Exit criteria.** One file to copy and be running.
 
+**Status 2026-10-19 — landed, except the exit criterion, which sits behind the
+publish.** `examples/` holds four client configs (Claude Desktop for macOS and
+Windows, Cursor, and the Claude Code form), `server.json` is the MCP Registry
+manifest, `mcpb/manifest.json` describes an MCP Bundle, and `glama.json` and
+`llms.txt` claim the directory and agent-index surfaces. Every artifact is
+validated rather than eyeballed — `tests/unit/distributionManifests.test.ts`
+(19 tests) parses each example and asserts a loadable `indesign` server, pins
+`server.json`'s `name` to `package.json`'s `mcpName` (the registry's entire
+ownership proof), and pins the MCPB manifest's entry point to the file its own
+`mcp_config.args` runs. **Corrected from the task text:** the "one file to copy
+and be running" criterion cannot be met while the package is unpublished (S5), so
+the examples point at a local build and `examples/README.md` documents the `npx`
+form; `distributionManifests.test.ts` fails if an example starts using `npx`
+before that publish lands. `mcpb/` ships a manifest plus
+`scripts/build-mcpb.mjs` (`npm run build:mcpb`) rather than a committed archive —
+the bundle embeds production `node_modules`, so a committed copy would be both
+stale and ~10 MB; `release.yml` builds and attaches it instead.
+
 **Rollback.** Additive.
 
 ---
@@ -366,6 +384,21 @@ then — do not reintroduce a second copy kept in sync by a script.
 **Verification.** Dry-run on a prerelease tag end to end.
 
 **Exit criteria.** One tag push, no manual steps.
+
+**Status 2026-10-19 — landed.** `release.yml` (tag → verify → npm publish with
+provenance → GitHub Release built from the CHANGELOG section, with the `.mcpb`
+attached), `publish-mcp-registry.yml` (chained off `release: published` so it
+cannot race npm's package availability), `scripts/validate-release-tag.sh`, and a
+generated `server.json` (`npm run server:json`, gated by `verify:server-json` in
+`npm run verify` and CI). The tag guard was demonstrated failing for the right
+reason: `validate-release-tag.sh v1.4.0` against a `1.5.0` package exits 1 naming
+the mismatch, and `v1.5.0` passes both the tag and the CHANGELOG check.
+**Deliberately not reintroduced:** no script writes a version into a file — the
+manifest is generated from `package.json` and the version guard remains
+`tests/unit/serverVersion.test.ts`. The exit criterion is met by the workflow but
+not yet *exercised*, because the npm publish step needs an `NPM_TOKEN` secret
+(open question 2); the workflow fails loudly on a missing token rather than
+skipping the publish, so a tag cannot look released and be uninstallable.
 
 **Rollback.** Delete the workflow.
 
@@ -474,6 +507,47 @@ on S5, so they are not.
 ## Mutation protocol
 
 Any change to a step records what changed, why, what it blocks, and the date.
+
+- **2026-10-19** — **S6 and S9 landed: the distribution half exists and is gated;
+  what is left is a credential, not code.** Open questions 2 and 3 (no npm
+  credentials, no Windows machine) still block S5's publish and S10's Windows
+  half, so S6 and S9 were the remaining steps that do not *need* either — they
+  need credentials only to *run*, not to be written. Six artifacts now exist where
+  none did: `examples/` (Claude Desktop for macOS and Windows, Cursor, Claude
+  Code), `server.json`, `mcpb/manifest.json`, `glama.json`, `llms.txt`, the two
+  release workflows and `scripts/validate-release-tag.sh`.
+  **The registry requirement changed the design.** The MCP Registry proves
+  ownership of an npm package by fetching it and matching `package.json`'s
+  `mcpName` against `server.json`'s `name`, so `package.json` gained `mcpName`
+  and `server.json` is *generated* from it (`npm run server:json`) with
+  `verify:server-json` in `npm run verify` and in CI. A hand-typed manifest would
+  be rejected days later with a generic "package validation failed" and no hint
+  which of the two strings was wrong.
+  **The bundle is staged as the published package, not moved into `server/`.**
+  MCPB's convention is a `server/` directory, but this server resolves
+  `assets/windows/*.vbs` as `../../assets/…` from `dist/bridge/`, so
+  `scripts/build-mcpb.mjs` packs the exact tarball `verify:pack` already booted
+  and leaves `entry_point` at `dist/index.js`; `distributionManifests.test.ts`
+  pins the entry point to the file the manifest's own `mcp_config.args` runs.
+  **Corrected from the task text:** `mcpb/` ships a manifest plus a builder, not a
+  committed archive — the bundle embeds production `node_modules`, so a committed
+  copy is both stale and ~10 MB; `release.yml` builds and attaches it.
+  **Also corrected:** S6's exit criterion ("one file to copy and be running")
+  cannot hold while the package is unpublished, so the examples point at a local
+  build and `examples/README.md` documents the `npx` form; a test fails if an
+  example starts using `npx` before that publish lands — the same honesty rule S5
+  already applies to the README.
+  **Verification:** `npm run verify` (lint, tool counts, docs, `verify:server-json`,
+  **1110 tests**, +20), `npm run verify:pack` (the packed artifact still boots and
+  advertises 197 tools), and `validate-release-tag.sh` seen failing for the right
+  reason (`v1.4.0` against a `1.5.0` package exits 1 naming the mismatch).
+  `verify:tool-counts` was extended to `llms.txt` so the count an agent reads
+  cannot drift either. **Independent evidence:** a fresh clone of tag `v1.5.0` on
+  a Raspberry Pi (`npm ci` → `verify` → `verify:pack`) passed — 1085 passed, 5
+  skipped of 1090, `VERIFYPACK_OK` — confirming the released tag builds and boots
+  on a machine that never saw this working tree.
+  **Plan impact:** S6 and S9 statuses recorded below. **Still open:** npm publish
+  (S5/S6/S9) and S10's Windows half — both resources, not code.
 
 - **2026-10-18** — **S3's deferred `document_id` exit criterion is now met: a
   shared document resolver plus a per-call target on every tool.** S3 (below)

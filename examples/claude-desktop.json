@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "indesign": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/adobe-indesign-mcp/dist/index.js"]
+    }
+  }
+}

@@ -37,6 +37,7 @@ async function main(): Promise<void> {
   const total = handlers.reduce((sum, h) => sum + h.tools.length, 0);
 
   const readme = readFileSync(join(root, 'README.md'), 'utf-8');
+  const llmsTxt = readFileSync(join(root, 'llms.txt'), 'utf-8');
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
     description?: string;
   };
@@ -47,6 +48,9 @@ async function main(): Promise<void> {
     // not sum to the total. The negative lookbehind skips them.
     ...eachMatch(readme, /(?<!\()\b(\d{2,4})\s+tools?\b/gi, 'README prose'),
     ...eachMatch(readme, /badge\/tools-(\d+)-/g, 'README badge'),
+    // llms.txt is read by agents rather than humans, so it is even easier to
+    // forget. It has no parenthesised sub-totals, so no lookbehind is needed.
+    ...eachMatch(llmsTxt, /\b(\d{2,4})\s+tools?\b/gi, 'llms.txt'),
     ...eachMatch(pkg.description ?? '', /\b(\d{2,4})\s+tools?\b/gi, 'package.json description'),
     ['README handler table', readmeHandlerTableSum()],
   ];

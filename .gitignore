@@ -26,3 +26,8 @@ Thumbs.db
 
 # Local Windows COM bridge scratch (machine-specific artifacts stay local)
 win-bridge-local/
+
+# Built MCPB bundles — attached to the GitHub Release by release.yml, never
+# committed (they embed node_modules).
+dist-mcpb/
+*.mcpb

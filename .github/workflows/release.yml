@@ -1,0 +1,81 @@
+name: Release
+
+# One tag push, no manual steps: validate the tag, prove the build, publish to
+# npm with provenance, and attach the release notes from the CHANGELOG plus the
+# .mcpb bundle.
+#
+# The registry half lives in publish-mcp-registry.yml and is chained off this
+# workflow's GitHub Release (`on: release: published`), so the registry never
+# advertises a version that npm does not have yet.
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create the GitHub Release and attach assets
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit, not a moving tag, for the same reason ci.yml is.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          fetch-depth: 0 # validate-release-tag wants the tag; it is already checked out
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # Tag and package.json must agree, and the version needs CHANGELOG notes.
+      # Failing here is cheap; failing after the npm publish is not.
+      - name: Validate the tag
+        id: tag
+        run: bash scripts/validate-release-tag.sh
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Verify the packed artifact
+        run: npm run verify:pack
+
+      # A loud, actionable failure beats a silent skip: without the token
+      # `npm publish` would die on ENEEDAUTH halfway through the release.
+      - name: Require NPM_TOKEN
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is not set. Add a repository secret named NPM_TOKEN (an npm automation token) before tagging a release."
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build the .mcpb bundle
+        run: npm run build:mcpb
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ steps.tag.outputs.notes }}
+        run: |
+          printf '%s\n' "$NOTES" > /tmp/notes.md
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file /tmp/notes.md \
+            --verify-tag \
+            dist-mcpb/*.mcpb
