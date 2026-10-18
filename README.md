@@ -323,7 +323,29 @@ Every message is a single-line JSON-RPC object terminated by `\n`; there is no f
 
 ---
 
-## 🆕 What's New in v1.4.3
+## 🆕 What's New in v1.5.0
+
+### For AI agents
+
+| ⚠️ | Read this before you script |
+|---|---|
+| **Pass `document_id` — don't trust the front tab** | Every tool takes an optional `document_id`: a document name (as `document_listOpen` reports it) or a 0-based index. With more than one document open the front tab is **not** reliably the intended target, and a call that lands on the wrong document edits the wrong file. Call `document_getState`, then pass `document_id` on everything that follows. |
+
+| Change | What it means for you |
+|--------|----------------------|
+| **`document_id` on every tool** | 197 tools, one extra optional parameter. Omit it and a tool acts on the front document — exactly the previous behaviour, so nothing you already send changes. |
+| **A target that is not open fails loudly** | `document_id 'Gone.indd' is not open. Open documents: A.indd, B.indd`, classified `document_not_found` and suggesting `document_listOpen`. Previously the script silently edited whichever document happened to be frontmost. |
+| **One shared resolver** | `app.activeDocument` was written inline in **197 places across 32 handlers**; `__resolveDocument()` is now injected with every script and every document-scoped handler resolves through it, so the target holds for the whole call — even if the front tab changes mid-script. |
+| **Safe by construction** | `document_id` reaches InDesign as a JSON string literal and is matched by name, so it is never executable. It is bound per call in `AsyncLocalStorage`, so a call that awaits before dispatching cannot be hijacked by a concurrent one. |
+
+### Changed
+
+| Change | What it means for you |
+|--------|----------------------|
+| **The "pin the document" advice is now executable** | The connect-time contract used to tell the host to *ask which document was meant*. It now names `document_id` and how to pass it, and the shipped `indesign-mcp-layout` skill points at it too. |
+
+<details>
+<summary>v1.4.3</summary>
 
 ### For AI agents
 
@@ -357,6 +379,8 @@ Every message is a single-line JSON-RPC object terminated by `\n`; there is no f
 | **Every call after `undo_beginGroup` failed** | `wrapExtendScript` set `app.scriptPreferences.undoMode`, a property InDesign does not have. Undo groups now run through `app.doScript(..., UndoModes.ENTIRE_SCRIPT)`. |
 | **`undo`, `redo` and `undo_history` threw on every call** | They read `document.undoable` / `document.redoable`, which are not part of the DOM. |
 | **The server reported itself as v1.0.0** | Four releases after v1.0.0 it advertised the old literal on `initialize`. `SERVER_VERSION` is now the single source of truth, and two gates keep it honest. |
+
+</details>
 
 <details>
 <summary>v1.4.2</summary>

@@ -484,9 +484,13 @@ Any change to a step records what changed, why, what it blocks, and the date.
   concurrent-call race, and a hostile `document_id`), `tsc --noEmit` clean, and
   `verify:pack`. The tool count is unchanged at 197 — `document_id` is a
   parameter, and the generated `docs/available-tools.md` renders names and
-  descriptions only, so it does not drift. **Deliberately not done:** no version
-  bump and no tag; the release decision is the maintainer's, so the change sits
-  under CHANGELOG `[Unreleased]` with the README "What's New" untouched.
+  descriptions only, so it does not drift. **Released as v1.5.0 (2026-10-18),**
+  git-only like v1.4.3: the maintainer chose the minor bump the new parameter
+  warrants, so the version moved in all four lockstep places (`package.json`,
+  `package-lock.json`, `plugin/manifest.json`, `SERVER_VERSION`), the CHANGELOG
+  `[Unreleased]` block became `[1.5.0] - 2026-10-18`, and the README's "What's
+  New" moved to v1.5.0 with v1.4.3 collapsed into `<details>`. npm publish
+  remains blocked on credentials (open question 2).
   **Plan impact:** S3's exit criteria and S2's status note are corrected below.
   **Unblocks:** S10's multi-document isolation scenario now has the mechanism it
   needed; a live two-document run against InDesign 2026 is the remaining
