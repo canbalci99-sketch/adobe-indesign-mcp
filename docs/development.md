@@ -40,6 +40,7 @@ The server is not published to npm; run it from the clone.
 | `npm run verify` | `lint` + `verify:tool-counts` + `verify:docs` + `test` (the CI gate) |
 | `npm run smoke:macos` | the live four-process smoke test (needs a running InDesign) |
 | `npm run smoke:recipes` | the live gate for the two recipes (needs a running InDesign) |
+| `npm run smoke:target` | the live gate for `document_id` (needs a running InDesign) |
 
 ## Test layout
 
@@ -150,9 +151,44 @@ and a good one must write the PDF. It uses bridge port `8133`, exits **0 with a
 SKIP notice** when InDesign is closed, and is not part of CI either.
 
 > The `tests/e2e/` directory is still a placeholder for a broader live scenario
-> suite (a multi-document scenario, the `document_close` modal path) and is not
-> wired into `npm test`. Today the working live tests are `smoke:macos` (the
-> bridge seams) and `smoke:recipes` (the recipes).
+> suite and is not wired into `npm test`. Today the working live tests are
+> `smoke:macos` (the bridge seams), `smoke:recipes` (the recipes) and
+> `smoke:target` (`document_id`).
+
+### The document-target live gate
+
+```bash
+npm run smoke:target
+```
+
+The unit suite proves the wiring — `registerTool` adds `document_id` to the
+schema, `wrapExtendScript` injects it as a string literal, the resolver throws
+when the target is not open. What no mocked test can prove is the behaviour the
+feature exists for: with **two** documents open, a call that names the *non-front*
+document must edit that document and leave the front one alone. `smoke:target`
+does exactly that against a real InDesign, over the real four processes.
+
+What it does:
+
+1. boots the server on bridge port `8132` (`SMOKE_TARGET_PORT`) so it never
+   fights your own bridge or the other smoke tests;
+2. asserts `initialize` **names `document_id` in the workflow contract**, and
+   that `tools/list` advertises `document_id` in a tool schema — the live proof
+   it survives the SDK's schema handling;
+3. creates two documents (`A`, then `B`), reads which one InDesign made front,
+   and targets the **other** one by name: the edit must land on the named
+   document and the front one must stay empty;
+4. targets by 0-based index and confirms it resolves to the same document;
+5. omits `document_id` and confirms the edit lands on the front document — the
+   additive guarantee;
+6. passes an unopened `document_id` and confirms the envelope is
+   `document_not_found` with `suggested_next_tool: document_listOpen`;
+7. passes a **hostile** `document_id` (`x'); app.documents[0].close(...)`) and
+   confirms it is inert: every document is still open;
+8. closes the two documents it created **without saving**, and asserts every
+   document that was open before the run is still open after it.
+
+Set `INDESIGN_APP` to your installed version if it is not `Adobe InDesign 2026`.
 
 ## Verification gates
 

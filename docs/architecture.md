@@ -261,6 +261,12 @@ structured error envelope, and closes without saving. It runs by hand (it needs
 a desktop app), and it skips with exit 0 if InDesign is not open. See
 [development.md](development.md).
 
+`npm run smoke:target` extends the same chain to the multi-document case: it
+opens two documents and proves a call naming the non-front document edits that
+document and not the front one — the behaviour `document_id` exists for, which
+no single-document smoke test can reach. See
+[development.md](development.md#the-document-target-live-gate).
+
 ---
 
 ## Key files
@@ -282,6 +288,7 @@ a desktop app), and it skips with exit 0 if InDesign is not open. See
 | `jxa-driver.js` | runs one script inside InDesign via `app.doScript` |
 | `plugin/` | UXP panel (the in-process client) |
 | `scripts/smoke-macos.mjs` | the live four-process smoke test |
+| `scripts/smoke-document-target.mjs` | the live `document_id` (multi-document) gate |
 
 ## See also
 

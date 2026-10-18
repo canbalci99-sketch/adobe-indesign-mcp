@@ -390,6 +390,13 @@ regression that matters, since passing `saveOptions: 'no'` explicitly cannot see
 default that drifts back to `'ask'`. Then the Windows COM equivalents — **the only
 thing that discharges G11.**
 
+**[rev 2026-10-18]** `document_id` shipped in `v1.5.0`, so the 2026-10-14
+substitution no longer applies: the multi-document scenario is now built as the
+*real* pin-isolation gate, not a workaround for the missing one. The scenario is
+`scripts/smoke-document-target.mjs` (`npm run smoke:target`), and it asserts the
+isolation by name **and** by index, plus the additive default and the
+`document_not_found` envelope. See the 2026-10-18 mutation entry above.
+
 **Status 2026-10-14.** The macOS half is done: the existing path, one live
 scenario per recipe (`scripts/smoke-recipes.mjs`), and the `document_close`
 default-safety check all pass against InDesign 2026 (`smoke:macos` 11/11,
@@ -399,6 +406,16 @@ it needs a decision on whether to pin documents first. The Windows half is open 
 path is shipped but unexercised by this project (unit-tested platform branch, no
 live `cscript` run), which is the "closed or stated plainly" half of the exit
 criterion. What remains is a real Windows host.
+
+**Status 2026-10-18.** The macOS half is now **complete**: the multi-document
+isolation scenario is built and green — `npm run smoke:target` passed **29/29**
+against InDesign 2026 on `v1.5.0`, proving that a call naming the non-front
+document edits that document and leaves the front one alone, by name and by
+index, that omitting `document_id` is still the front document, and that an
+unopened or hostile target is handled (typed envelope / inert). It deliberately
+does not use the document-open decision the 2026-10-14 status wanted: that
+decision was made, and it was `document_id`. The step stays open on the
+**Windows** half only — G11 still needs a real Windows host.
 
 **Verification.** All pass locally vs InDesign 2026; Windows scenarios run on a real host or are explicitly marked unverified.
 
@@ -493,8 +510,31 @@ Any change to a step records what changed, why, what it blocks, and the date.
   remains blocked on credentials (open question 2).
   **Plan impact:** S3's exit criteria and S2's status note are corrected below.
   **Unblocks:** S10's multi-document isolation scenario now has the mechanism it
-  needed; a live two-document run against InDesign 2026 is the remaining
-  evidence.
+  needed.
+
+- **2026-10-18** — **S10's multi-document isolation evidence is captured live; the
+  capability is released as v1.5.0.** `npm run smoke:target`
+  (`scripts/smoke-document-target.mjs`) drives the real four-process chain —
+  MCP stdio → WebSocket bridge → JXA proxy → InDesign 2026 — and opens **two**
+  documents. With `Senza titolo-4` front (index 0) and `Senza titolo-3`
+  non-front (index 1) it proved, in order: a `text_addFrame` naming the
+  **non-front** document landed on that document (`contentPreview:
+  TGTSMOKE-BY-NAME-ON-OTHER`) and the front document stayed empty (`[]`);
+  targeting by 0-based index resolved to the same document; **omitting**
+  `document_id` put the edit on the front document and left the other untouched
+  (the additive guarantee); an unopened `document_id` returned
+  `{"ok":false,"code":"document_not_found","suggested_next_tool":
+  "document_listOpen"}` — the live proof of the new envelope rule, with the
+  resolver's own message quoted back; and a hostile `document_id`
+  (`x'); app.documents[0].close(SaveOptions.NO); ('y`) was inert (all documents
+  still open). Both documents the run created were closed without saving, and
+  the two documents that were already open (`bayram_pres_266.indd`,
+  `bayram_pres_26.indd`) survived untouched. 29/29 checks passed, and
+  `npm run smoke:macos` passed 11/11 on the same build. The gate is wired as
+  `npm run smoke:target` (bridge port 8132, SKIP-with-exit-0 when InDesign is
+  closed) and documented in `docs/development.md`; it is the `tests/e2e/`
+  multi-document scenario the placeholder named. See the v1.5.0 entry above for
+  the release mechanics.
 
 - **2026-10-18** — **v1.4.3 shipped as a git-only release.** With npm credentials
   still absent (open question 2) and a Windows machine still absent (open

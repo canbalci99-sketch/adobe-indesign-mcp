@@ -498,7 +498,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ├── jxa-driver.js        # Runs one ExtendScript inside InDesign
 ├── start-bridge.sh      # Launches InDesign + the proxy
 ├── skills/              # Agent-facing skills shipped with the server
-├── tests/               # 1052 tests (vitest)
+├── tests/               # 1090 tests (vitest)
 ├── .opencode/skills/    # 10 AI agent skills
 ├── docs/                # Documentation and fork audits
 ├── media/               # Social preview, hero images
@@ -521,7 +521,7 @@ Two ways to run on Windows: the standard UXP plugin flow (identical to macOS) or
 ## 🧪 Development
 
 ```bash
-npm test            # Run 1052 tests
+npm test            # Run 1090 tests
 npm run test:watch  # Watch mode
 npm run build       # TypeScript compile
 npm run lint        # ESLint
@@ -557,6 +557,20 @@ npm run smoke:recipes   # the live gate for the two recipes
 reported, calls `undo` **once** to confirm the whole flow is a single undo step,
 then exercises both preset paths of `recipe_exportPreset`. Same rules as above —
 needs a desktop app, exits 0 with a SKIP notice when InDesign is closed.
+
+```bash
+npm run smoke:target    # the live gate for document_id
+```
+
+`smoke:target` opens **two** documents and proves the thing `document_id` is for:
+a call that names the non-front document edits *that* document and leaves the
+front one alone. It then checks index targeting, that omitting `document_id`
+still acts on the front document (the additive guarantee), that an unopened
+target arrives as a `document_not_found` envelope suggesting `document_listOpen`,
+and that a hostile `document_id` is inert rather than executed. It closes only
+the documents it created, never saves, and leaves every pre-existing document
+untouched. Same rules as above — needs a desktop app, exits 0 with a SKIP notice
+when InDesign is closed.
 
 ---
 
