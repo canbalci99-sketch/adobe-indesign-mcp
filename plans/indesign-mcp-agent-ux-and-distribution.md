@@ -484,6 +484,11 @@ S8 (docs)
 its own graph contradicted — S2 feeds nothing on the path.
 **Unblocked today:** S5 and S8 only. v1 claimed S6/S7/S12 too; S6 and S9 depend
 on S5, so they are not.
+**[rev 2026-10-19]** "Depends on S5" turned out to mean *only the publish step
+does*. S6 and S9 are written, tested and green with no credential — see the
+2026-10-19 mutation entry. The graph still orders the *publish*, but it is not
+the authoring order: the configs and the release workflow did not have to wait
+for npm.
 
 ## Invariants (after every step)
 
@@ -963,7 +968,21 @@ Any change to a step records what changed, why, what it blocks, and the date.
    `npm run smoke:macos` now closes a *dirty* document with `saveOptions`
    deliberately omitted, so a regression to a prompting value fails live instead
    of hanging the next person's InDesign.
-2. **npm publishing.** S5 needs your credentials. S6 and S9 are gated behind it.
+2. **npm publishing.** S5 needs your credentials, and after the 2026-10-19 change
+   it is the *only* thing between this repo and a released, registry-listed
+   server: S6 and S9 are written, gated and green — only their publish steps need
+   the credential.
+   **Resolved 2026-10-19 for S6/S9, open for S5.** `npm whoami` returns
+   `ENEEDAUTH` and there is no `~/.npmrc`, so nothing here is publishable yet, but
+   nothing here is waiting on a decision either: `server.json`, `examples/`, the
+   MCP Bundle manifest and both release workflows exist and pass CI. What a
+   maintainer has to do is exactly two things — (a) `npm login` (or add a
+   repository secret `NPM_TOKEN`, an npm automation token) and (b) publish. The
+   release flow is then one tag push; `release.yml` fails loudly on a missing
+   token rather than skipping, so a tag cannot look released and be uninstallable.
+   The registry half needs no secret at all — `publish-mcp-registry.yml`
+   authenticates with GitHub OIDC — but it cannot run before the npm package
+   exists, because the registry verifies ownership by fetching it.
 3. **Windows machine.** S10's second half needs one. Without it, G11 stays open.
 4. **S1 scope.** Do you accept the response-shape change for all 197 tools, or should it land behind a config flag for one release?
    **Resolved 2026-10-14: behind a config flag for one release.** The failure
